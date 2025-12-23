@@ -50,11 +50,7 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
 
         {/* Forgot password */}
         <div className="space-y-4">
-          <div className="text-right">
-            <button className="text-sm text-primary hover:underline text-[#AE4700]">
-              Forgot password?
-            </button>
-          </div>
+          <div className="text-right"></div>
           {/* Submit */}
           <button className="cursor-pointer btn btn-primary w-full bg-[#007400] p-2 rounded-md">
             Sign Up
