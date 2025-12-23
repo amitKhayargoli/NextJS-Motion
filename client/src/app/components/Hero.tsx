@@ -16,7 +16,7 @@ export default function Hero() {
     <div className="w-full flex flex-col items-center py-20">
       {/* pill shaped hero desc*/}
 
-      <PillDesc desc="🍒📝 Set your life in Motion with AI Notes " />
+      <PillDesc desc="🍒📝 Set your life in Motion with AI Notes  " />
 
       <h1 className="text-5xl font-bold text-center text-[#D2FF89] mb-14">
         All-In-One Collaboration and <br /> Productivity Platform
