@@ -1,9 +1,9 @@
 "use client";
 
-import LoginModal from "./components/auth/LoginModal";
-import SignupModal from "./components/auth/schema/SignupModal";
-import Hero from "./components/Hero";
-import Navbar from "./components/Navbar";
+import LoginModal from "./_components/auth/LoginModal";
+import SignupModal from "./_components/auth/SignupModal";
+import Hero from "./_components/Hero";
+import Navbar from "./_components/Navbar";
 import { useAuthStore } from "@/store/auth.store";
 
 export default function Home() {

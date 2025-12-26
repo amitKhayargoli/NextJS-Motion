@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "../../ui/Modal";
 import Image from "next/image";
-import { SignupFormData, signupSchema } from "./signupSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { SignupFormData, signupSchema } from "./schema/signupSchema";
+import Modal from "../ui/Modal";
 
 interface SignupModalProps {
   isOpen: boolean;
