@@ -1,7 +1,11 @@
 "use client";
 
-import Modal from "../ui/Modal";
+import { useState } from "react";
+import Modal from "../../ui/Modal";
 import Image from "next/image";
+import { SignupFormData, signupSchema } from "./signupSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -9,9 +13,22 @@ interface SignupModalProps {
 }
 
 export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+  });
+  const onSubmit = (data: SignupFormData) => {
+    console.log(data);
+  };
+
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="space-y-6">
+      <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
         {/* Logo */}
         <div className="flex flex-col items-center">
           <Image src="/logo.png" alt="Logo" width={50} height={50} />
@@ -30,8 +47,22 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
             <span className="label-text">Email</span>
           </label>
           <input
+            {...register("email")}
             type="email"
             placeholder="you@example.com"
+            className="input input-bordered w-full bg-white/10 outline-none p-2 rounded-md"
+          />
+        </div>
+
+        {/* Username */}
+        <div className="">
+          <label className="label">
+            <span className="label-text">Username</span>
+          </label>
+          <input
+            {...register("username")}
+            type="text"
+            placeholder="john"
             className="input input-bordered w-full bg-white/10 outline-none p-2 rounded-md"
           />
         </div>
@@ -42,10 +73,23 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
             <span className="label-text">Password</span>
           </label>
           <input
-            type="password"
+            {...register("password")}
+            type={showPassword ? "text" : "password"}
             placeholder="••••••••"
             className="input input-bordered w-full bg-white/10 outline-none p-2 rounded-md"
           />
+
+          {/* show password */}
+          <div className="flex items-center mt-2 gap-1">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-primary"
+              onChange={() => setShowPassword(!showPassword)}
+            />
+            <label className="label">
+              <span className="label-text text-sm">Show Password</span>
+            </label>
+          </div>
         </div>
 
         {/* Forgot password */}
@@ -63,7 +107,7 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
             </span>
           </p>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }
