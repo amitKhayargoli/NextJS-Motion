@@ -1,11 +1,14 @@
 "use client";
-
+import { useEffect } from "react";
 import { useState } from "react";
-import Modal from "../../ui/Modal";
 import Image from "next/image";
-import { SignupFormData, signupSchema } from "./signupSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { SignupFormData, signupSchema } from "./schema/signupSchema";
+import Modal from "../ui/Modal";
+import bcrypt from "bcryptjs";
+import { toast } from "react-hot-toast";
+import { useAuthStore } from "@/store/auth.store";
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -13,18 +16,39 @@ interface SignupModalProps {
 }
 
 export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
+  const openLoginModal = useAuthStore((s) => s.openLoginModal);
+
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
-  const onSubmit = (data: SignupFormData) => {
-    console.log(data);
+  const onSubmit = async (data: SignupFormData) => {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const userData = { ...data, password: hashedPassword };
+
+    localStorage.setItem("userData", JSON.stringify(userData));
+
+    toast.success("Signup Successful with: " + data.email, {
+      id: "signupSuccess",
+    });
+
+    reset();
+    onClose();
   };
 
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    Object.entries(errors).forEach(([field, error]) => {
+      if (error?.message) {
+        toast.error(error.message, { id: field });
+      }
+    });
+  }, [errors]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -32,7 +56,7 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
         {/* Logo */}
         <div className="flex flex-col items-center">
           <Image src="/logo.png" alt="Logo" width={50} height={50} />
-          <h2 className="text-[#375506] text-2xl font-bold text-center  mt-2">
+          <h2 className="text-[#cffb87] text-2xl font-bold text-center  mt-2">
             MotionAI
           </h2>
 
@@ -83,7 +107,7 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
           <div className="flex items-center mt-2 gap-1">
             <input
               type="checkbox"
-              className="checkbox checkbox-primary"
+              className="checkbox checkbox-primary mt-0.5"
               onChange={() => setShowPassword(!showPassword)}
             />
             <label className="label">
@@ -101,8 +125,14 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
           </button>
           {/* Footer */}
           <p className="text-center text-sm text-gray-500">
-            Or Continue With{" "}
-            <span className="cursor-pointer text-primary hover:underline text-[#007400]">
+            Already have an account?{" "}
+            <span
+              className="cursor-pointer text-primary hover:underline text-[#007400]"
+              onClick={() => {
+                onClose();
+                openLoginModal();
+              }}
+            >
               Sign in
             </span>
           </p>

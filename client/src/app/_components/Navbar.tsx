@@ -15,11 +15,11 @@ export default function Navbar() {
         <h1 className="font-bold text-[#70AA12]">MotionAI</h1>
       </div>
 
-      <ul className="ml-20 flex rounded-full border-1 border-[#375506] px-4 py-2 backdrop-blur-sm">
-        <li className="mx-4 cursor-pointer">Product</li>
-        <li className="mx-4 cursor-pointer">Pricing</li>
-        <li className="mx-4 cursor-pointer">Resources</li>
-        <li className="mx-4 cursor-pointer">About</li>
+      <ul className="hidden ml-20 lg:flex rounded-full border-1 border-[#375506] px-4 py-2 backdrop-blur-sm">
+        <li className="mx-4 cursor-pointer hover:underline">Product</li>
+        <li className="mx-4 cursor-pointer hover:underline">Pricing</li>
+        <li className="mx-4 cursor-pointer hover:underline">Resources</li>
+        <li className="mx-4 cursor-pointer hover:underline">About</li>
       </ul>
       <div className="flex">
         <button
