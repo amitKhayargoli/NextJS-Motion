@@ -29,7 +29,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        <Toaster position="top-right" />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            className:
+              "!rounded-xl !p-4  !shadow-xl !bg-[#003200]/30 !text-white !font-semibold",
+            duration: 1500,
+          }}
+        />
       </body>
     </html>
   );
