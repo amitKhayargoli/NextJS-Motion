@@ -1,0 +1,207 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+    url      = env("DATABASE_URL")
+
+}
+// ==============================
+// CORE ENTITIES
+// ==============================
+
+model User {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  email        String @unique
+  username     String
+  passwordHash String
+
+  // Relationships
+  ownedWorkspaces Workspace[] 
+  UserRoles       UserRoles[]
+
+  // Content
+  notes         Note[]        @relation("UserNotes")
+  assignedTasks Task[]
+  audioFiles    AudioFile[] // New: Files uploaded by the user
+  meetingLinks  MeetingLink[] // New: Links created by the user
+}
+
+model Workspace {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  inviteLink String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  ownerId   String      @db.ObjectId
+  owner     User        @relation(fields: [ownerId], references: [id])
+  UserRoles UserRoles[]
+  notes     Note[]
+  tasks     Task[]
+}
+
+model UserRoles {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String @db.ObjectId
+  workspaceId String @db.ObjectId
+  role        Role   @default(EDITOR)
+
+  // Relationships
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId], name: "unique_user_workspace_role")
+}
+
+// ==============================
+// CONTENT & TRANSCRIPTION MODELS
+// ==============================
+
+model Note {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  content   String   @db.String // Raw text/rich content
+  summary   String?  @db.String // AI Generated Summary
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  type      NoteType @default(MANUAL) // MANUAL, VOICE_TRANSCRIPT, MEETING_SUMMARY
+  isSynced  Boolean  @default(false) // Tracking for local-first sync status
+
+  // Relationships (Many side)
+  authorId    String    @db.ObjectId
+  author      User      @relation("UserNotes", fields: [authorId], references: [id])
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  // Optional link to an audio file
+  audioFileId String?    @unique @db.ObjectId
+  audioFile   AudioFile? @relation(fields: [audioFileId], references: [id])
+
+  // Link to vector embedding for RAG
+  vectorEmbedding VectorEmbedding?
+}
+
+model AudioFile {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  fileName        String
+  cloudUrl        String   @unique // S3 or MongoDB GridFS URL
+  durationSeconds Int
+  mimeType        String   @default("audio/mp4")
+  uploadedAt      DateTime @default(now())
+
+  // Relationships
+  uploaderId String @db.ObjectId
+  uploader   User   @relation(fields: [uploaderId], references: [id])
+
+  // Link to the content (note/transcript) generated from this file
+  note        Note?
+  meetingLink MeetingLink? // Optional link if audio was captured from a meeting
+}
+
+model VectorEmbedding {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  noteId String @unique @db.ObjectId
+  note   Note   @relation(fields: [noteId], references: [id])
+
+  // This field will hold the 1536-dimensional vector array.
+  // MongoDB requires this to be a type that supports array indexing for Vector Search.
+  // In Prisma/MongoDB, this is typically mapped to a BSON Array.
+  vector Float[]
+
+  // Status helps track if the vector is ready for search (e.g., PENDING, READY, FAILED)
+  status VectorStatus @default(PENDING)
+
+  // Custom index for MongoDB Atlas Vector Search (configured externally in Atlas, but reflected here)
+  @@index([vector])
+}
+
+// ==============================
+// TASK MANAGEMENT
+// ==============================
+
+model Task {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?    @db.String
+  status      TaskStatus @default(TODO)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relationships
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  assigneeId  String?   @db.ObjectId
+  assignee    User?     @relation(fields: [assigneeId], references: [id])
+}
+
+// ==============================
+// MEETING INTEGRATION
+// ==============================
+
+model MeetingLink {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  platform      Platform // ZOOM or MEET
+  meetingUrl    String
+  title         String
+  scheduledTime DateTime
+  createdAt     DateTime @default(now())
+
+  // Relationships
+  creatorId String @db.ObjectId
+  creator   User   @relation(fields: [creatorId], references: [id])
+
+  // Link to the captured audio/transcript
+  audioFileId String?    @unique @db.ObjectId
+  audioFile   AudioFile? @relation(fields: [audioFileId], references: [id])
+}
+
+// ==============================
+// ENUMS
+// ==============================
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum NoteType {
+  MANUAL
+  VOICE_TRANSCRIPT
+  MEETING_SUMMARY
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum VectorStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum Platform {
+  ZOOM
+  MEET
+  OTHER
+}
