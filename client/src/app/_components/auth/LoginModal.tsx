@@ -10,6 +10,8 @@ import bcrypt from "bcryptjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
+import axios from "axios";
+import api from "@/lib/axios";
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,27 +32,28 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    const storedUser = localStorage.getItem("userData");
+    try {
+      const response = await api.post("/auth/login", data);
 
-    if (!storedUser) {
-      toast.error("No user found. Please sign up first.", { id: "loginError" });
-      return;
-    }
+      const token = response.data.token;
 
-    const userData = JSON.parse(storedUser);
+      if (token && typeof window !== "undefined") {
+        localStorage.setItem("authToken", token);
 
-    const isMatch = await bcrypt.compare(data.password, userData.password);
+        // Success feedback and Redirect
+        console.log(response.data);
+        onClose();
+        router.push("/dashboard");
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || "Something went wrong";
 
-    if (data.email === userData.email && isMatch) {
-      toast.success("Login Successful!", { id: "loginSuccess" });
-    } else {
-      toast.error("Invalid email or password.", { id: "loginError" });
+      toast.error(errorMessage);
     }
 
     reset();
     onClose();
-
-    setTimeout(() => router.push("/dashboard"), 300);
   };
 
   useEffect(() => {

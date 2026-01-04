@@ -9,6 +9,7 @@ import Modal from "../ui/Modal";
 import bcrypt from "bcryptjs";
 import { toast } from "react-hot-toast";
 import { useAuthStore } from "@/store/auth.store";
+import api from "@/lib/axios";
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -27,17 +28,18 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
     resolver: zodResolver(signupSchema),
   });
   const onSubmit = async (data: SignupFormData) => {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-    const userData = { ...data, password: hashedPassword };
-
-    localStorage.setItem("userData", JSON.stringify(userData));
-
-    toast.success("Signup Successful with: " + data.email, {
-      id: "signupSuccess",
-    });
-
-    reset();
-    onClose();
+    try {
+      const result = await api.post("/auth/register", data);
+      console.log(result);
+      toast.success("Signup Successful with: " + data.email, {
+        id: "signupSuccess",
+      });
+      reset();
+      setTimeout(onClose, 400);
+    } catch (error) {
+      toast.error("Signup Unsuccesful");
+      onClose();
+    }
   };
 
   const [showPassword, setShowPassword] = useState(false);
