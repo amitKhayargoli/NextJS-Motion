@@ -7,7 +7,7 @@ export interface IUserRepository {
   getUserByEmail(email: string): Promise<User | null>;
   getUserByUsername(username: string): Promise<User | null>;
   getUserById(id: string): Promise<User | null>;
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(): Promise<Omit<User, "passwordHash">[]>;
   updateUser(id: string, updateData: Partial<User>): Promise<User | null>;
   deleteUser(id: string): Promise<boolean>;
 }
@@ -49,8 +49,15 @@ export class UserRepository implements IUserRepository {
     });
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return await prisma.user.findMany();
+  async getAllUsers(): Promise<Omit<User, "passwordHash">[]> {
+    return await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        // Exclude passwordHash for security
+      },
+    });
   }
 
   async updateUser(

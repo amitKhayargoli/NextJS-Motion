@@ -1,4 +1,4 @@
-import { CreateUserDTO, LoginUserDTO } from "../dtos/user.dto";
+import { CreateUserDTO, LoginUserDTO, UserResponseDTO } from "../dtos/user.dto";
 import { HttpError } from "../errors/htttp-error";
 import { UserRepository } from "../repositories/user.repository";
 import bcryptjs from "bcryptjs";
@@ -57,5 +57,13 @@ export class UserService {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
     return { token, existingUser };
+  }
+
+  async getAllUsers(): Promise<UserResponseDTO[]> {
+    const users = await userRepository.getAllUsers();
+    if (!users) {
+      throw new HttpError("No users found", 404);
+    }
+    return users as UserResponseDTO[];
   }
 }

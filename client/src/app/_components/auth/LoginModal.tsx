@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import axios from "axios";
-import api from "@/lib/axios";
+import api from "@/lib/api/axios";
+import { handleLogin } from "@/lib/actions/auth-action";
+import { setTokenCookie, storeUserData } from "@/lib/cookie";
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,27 +34,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     resolver: zodResolver(loginSchema),
   });
 
+  const [error, setError] = useState("");
+
   const onSubmit = async (data: LoginFormData) => {
+    setError("");
     try {
-      const response = await api.post("/auth/login", data);
-
-      const token = response.data.token;
-
-      if (token && typeof window !== "undefined") {
-        localStorage.setItem("authToken", token);
-
-        // Success feedback and Redirect
-        console.log(response.data);
-        onClose();
-        router.push("/dashboard");
+      const res = await handleLogin(data);
+      if (!res.success) {
+        throw new Error(res.message || "Login failed");
       }
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.message || "Something went wrong";
+      toast.success(`Login successful with ${data.email}`);
 
-      toast.error(errorMessage);
+      reset();
+      onClose();
+      router.push("/dashboard");
+    } catch (error: Error | any) {
+      toast.error(error.message || "Login failed");
     }
-
     reset();
     onClose();
   };
