@@ -7,9 +7,10 @@ import { useForm } from "react-hook-form";
 import { SignupFormData, signupSchema } from "./schema/signupSchema";
 import Modal from "../ui/Modal";
 import bcrypt from "bcryptjs";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/auth.store";
-import api from "@/lib/axios";
+import api from "@/lib/api/axios";
+import { handleRegister } from "@/lib/actions/auth-action";
 
 interface SignupModalProps {
   isOpen: boolean;
@@ -27,17 +28,19 @@ export default function SignupModal({ isOpen, onClose }: SignupModalProps) {
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
+
+  const [error, setError] = useState("");
   const onSubmit = async (data: SignupFormData) => {
     try {
-      const result = await api.post("/auth/register", data);
+      const result = await handleRegister(data);
       console.log(result);
       toast.success("Signup Successful with: " + data.email, {
         id: "signupSuccess",
       });
       reset();
       setTimeout(onClose, 400);
-    } catch (error) {
-      toast.error("Signup Unsuccesful");
+    } catch (error: Error | any) {
+      toast.error(error.message);
       onClose();
     }
   };
