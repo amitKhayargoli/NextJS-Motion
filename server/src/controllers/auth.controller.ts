@@ -6,6 +6,7 @@ import z, { success } from "zod";
 let userService = new UserService();
 
 export class AuthController {
+  //1. Register User
   async register(req: Request, res: Response) {
     try {
       // validate request body
@@ -30,7 +31,7 @@ export class AuthController {
       });
     }
   }
-
+  //2. Login
   async login(req: Request, res: Response) {
     try {
       const parsedData = LoginUserDTO.safeParse(req.body);
@@ -55,4 +56,23 @@ export class AuthController {
       });
     }
   }
+
+  //2. Get All users
+  getAllUsers = async (req: Request, res: Response) => {
+    try {
+      const userService = new UserService();
+      const users = await userService.getAllUsers();
+
+      res.status(200).json({
+        success: true,
+        data: users,
+        message: "Users fetched successfully",
+      });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  };
 }
