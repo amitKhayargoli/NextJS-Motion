@@ -30,3 +30,22 @@ export const loginuser = async (loginData: any) => {
     throw new Error(message);
   }
 };
+
+export const updateProfile = async (updateData: any) => {
+  try {
+    const response = await axios.put(API.AUTH.UPDATE, updateData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to update profile";
+
+    throw new Error(message);
+  }
+};

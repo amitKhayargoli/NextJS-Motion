@@ -1,7 +1,8 @@
 "use server";
 
-import { loginuser, registerUser } from "../api/auth";
-import { setTokenCookie, storeUserData } from "../cookie";
+import { revalidatePath } from "next/cache";
+import { loginuser, registerUser, updateProfile } from "../api/auth";
+import { getTokenCookie, setTokenCookie, storeUserData } from "../cookie";
 export const handleRegister = async (formData: any) => {
   try {
     const res = await registerUser(formData);
@@ -36,5 +37,28 @@ export const handleLogin = async (formData: any) => {
     return { success: false, message: res.message || "Login failed" };
   } catch (err: Error | any) {
     return { success: false, message: err.message || "Login failed" };
+  }
+};
+
+export const handleUpdateProfile = async (data: FormData) => {
+  try {
+    const response = await updateProfile(data);
+    if (response.success) {
+      revalidatePath("/user/profile");
+      return {
+        success: true,
+        message: "Update successful",
+        data: response.data,
+      };
+    }
+    return {
+      success: false,
+      message: response.message || "Update failed",
+    };
+  } catch (error: Error | any) {
+    return {
+      success: false,
+      message: error.message || "Update action failed",
+    };
   }
 };

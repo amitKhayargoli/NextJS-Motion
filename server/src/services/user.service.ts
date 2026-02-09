@@ -1,5 +1,5 @@
 import { CreateUserDTO, LoginUserDTO, UserResponseDTO } from "../dtos/user.dto";
-import { HttpError } from "../errors/htttp-error";
+import { HttpError } from "../dtos/errors/http-error";
 import { UserRepository } from "../repositories/user.repository";
 import bcryptjs from "bcryptjs";
 import { email } from "zod";
@@ -14,14 +14,14 @@ export class UserService {
     const emailExists = await userRepository.getUserByEmail(data.email);
 
     if (emailExists) {
-      throw new HttpError("Email already in use", 403);
+      throw new HttpError(403, "Email already in use");
     }
 
     const usernameExists = await userRepository.getUserByUsername(
-      data.username
+      data.username,
     );
     if (usernameExists) {
-      throw new HttpError("Username already in use", 403);
+      throw new HttpError(403, "Username already in use");
     }
 
     // hash password
@@ -37,16 +37,16 @@ export class UserService {
     const existingUser = await userRepository.getUserByEmail(data.email);
 
     if (!existingUser) {
-      throw new HttpError("User not found", 404);
+      throw new HttpError(404, "User not found");
     }
 
     const isPasswordValid = await bcryptjs.compare(
       data.password,
-      existingUser.passwordHash
+      existingUser.passwordHash,
     );
 
     if (!isPasswordValid) {
-      throw new HttpError("Invalid Credentials", 400);
+      throw new HttpError(400, "Invalid Credentials");
     }
 
     const payload = {
@@ -62,8 +62,19 @@ export class UserService {
   async getAllUsers(): Promise<UserResponseDTO[]> {
     const users = await userRepository.getAllUsers();
     if (!users) {
-      throw new HttpError("No users found", 404);
+      throw new HttpError(404, "No users found");
     }
     return users as UserResponseDTO[];
+  }
+
+  async updateUser(
+    id: string,
+    updateData: Partial<UserResponseDTO>,
+  ): Promise<UserResponseDTO> {
+    const updatedUser = await userRepository.updateUser(id, updateData);
+    if (!updatedUser) {
+      throw new HttpError(404, "User not found");
+    }
+    return updatedUser as UserResponseDTO;
   }
 }

@@ -47,7 +47,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
       reset();
       onClose();
-      router.push("/dashboard");
+      router.replace("/workspace");
     } catch (error: Error | any) {
       toast.error(error.message || "Login failed");
     }
