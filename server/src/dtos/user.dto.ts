@@ -18,6 +18,9 @@ export interface UserResponseDTO {
   id: string;
   email: string;
   username: string;
+  profilePicture?: string;
 }
 
 export type LoginUserDTO = z.infer<typeof LoginUserDTO>;
+export const UpdateUserDTO = UserSchema.partial(); //all fields optional
+export type UpdateUserDTO = z.infer<typeof UpdateUserDTO>;
