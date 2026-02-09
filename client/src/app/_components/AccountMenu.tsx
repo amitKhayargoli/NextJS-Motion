@@ -69,14 +69,14 @@ export default function AccountMenu({
   isModalOpen,
   setIsModalOpen,
 }: AccountMenuProps) {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const router = useRouter();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const imageUrl = user?.profilePicture
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${user.profilePicture}`
+    ? `${process.env.NEXT_PUBLIC_API_BASE}${user.profilePicture}`
     : "/placeholder-profile.png";
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,8 +153,8 @@ export default function AccountMenu({
 
   /* -------------------- LOGOUT -------------------- */
   const handleLogout = async () => {
-    await clearAuthCookies();
-    router.push("/login");
+    logout();
+    router.push("/");
   };
 
   /* -------------------- UI -------------------- */
