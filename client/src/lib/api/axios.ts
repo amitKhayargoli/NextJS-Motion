@@ -1,20 +1,24 @@
 import axios from "axios";
+import { getTokenCookie } from "../cookie";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+const axiosInstance = axios.create({
+  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
+axiosInstance.interceptors.request.use(
+  async (config) => {
+    const token = await getTokenCookie();
+    if (token && config.headers) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
 
-// Adding request Interceptor for JWT token
-api.interceptors.request.use((config) => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-export default api;
+export default axiosInstance;
