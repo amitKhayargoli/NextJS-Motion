@@ -17,28 +17,30 @@ generator client {
 
 datasource db {
   provider = "mongodb"
-    url      = env("DATABASE_URL")
-
+  url      = env("DATABASE_URL")
 }
+
 // ==============================
 // CORE ENTITIES
-// ==============================
+// ==============================*
 
 model User {
-  id           String @id @default(auto()) @map("_id") @db.ObjectId
-  email        String @unique
-  username     String
-  passwordHash String
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  email          String  @unique
+  username       String
+  passwordHash   String
+  profilePicture String?
 
   // Relationships
-  ownedWorkspaces Workspace[] 
+  ownedWorkspaces Workspace[]
   UserRoles       UserRoles[]
 
   // Content
-  notes         Note[]        @relation("UserNotes")
-  assignedTasks Task[]
-  audioFiles    AudioFile[] // New: Files uploaded by the user
-  meetingLinks  MeetingLink[] // New: Links created by the user
+  notes          Note[]          @relation("UserNotes")
+  assignedTasks  Task[]
+  audioFiles     AudioFile[] // New: Files uploaded by the user
+  meetingLinks   MeetingLink[] // New: Links created by the user
+  accessRequests AccessRequest[]
 }
 
 model Workspace {
@@ -49,24 +51,40 @@ model Workspace {
   updatedAt  DateTime @updatedAt
 
   // Relationships
-  ownerId   String      @db.ObjectId
-  owner     User        @relation(fields: [ownerId], references: [id])
-  UserRoles UserRoles[]
-  notes     Note[]
-  tasks     Task[]
+  ownerId        String          @db.ObjectId
+  owner          User            @relation(fields: [ownerId], references: [id])
+  UserRoles      UserRoles[]
+  notes          Note[]
+  tasks          Task[]
+  accessRequests AccessRequest[]
 }
 
 model UserRoles {
   id          String @id @default(auto()) @map("_id") @db.ObjectId
   userId      String @db.ObjectId
   workspaceId String @db.ObjectId
-  role        Role   @default(EDITOR)
+  role        Role   @default(VIEWER)
 
   // Relationships
   user      User      @relation(fields: [userId], references: [id])
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@unique([userId, workspaceId], name: "unique_user_workspace_role")
+}
+
+model AccessRequest {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String        @db.ObjectId
+  userId      String        @db.ObjectId
+  status      RequestStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relationships
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, userId], name: "unique_workspace_user_request")
 }
 
 // ==============================
@@ -100,9 +118,9 @@ model Note {
 model AudioFile {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   fileName        String
-  cloudUrl        String   @unique // S3 or MongoDB GridFS URL
+  cloudUrl        String   @unique //cloudfare r2
   durationSeconds Int
-  mimeType        String   @default("audio/mp4")
+  mimeType        String   @default("audio/mp3")
   uploadedAt      DateTime @default(now())
 
   // Relationships
@@ -204,4 +222,10 @@ enum Platform {
   ZOOM
   MEET
   OTHER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DENIED
 }
