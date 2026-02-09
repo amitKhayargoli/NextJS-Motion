@@ -55,6 +55,7 @@ export class UserRepository implements IUserRepository {
         id: true,
         email: true,
         username: true,
+        profilePicture: true,
         // Exclude passwordHash for security
       },
     });
@@ -62,9 +63,20 @@ export class UserRepository implements IUserRepository {
 
   async updateUser(
     id: string,
-    updateData: Partial<User>
+    updateData: Partial<User>,
   ): Promise<User | null> {
-    return await prisma.user.update({
+    if (updateData.email) {
+      const existingUser = await prisma.user.findUnique({
+        where: { id },
+      });
+
+      // If email is the same, don't update it
+      if (existingUser?.email === updateData.email) {
+        delete updateData.email;
+      }
+    }
+
+    return prisma.user.update({
       where: { id },
       data: updateData,
     });
