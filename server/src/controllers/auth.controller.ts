@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { CreateUserDTO, LoginUserDTO } from "../dtos/user.dto";
+import { CreateUserDTO, LoginUserDTO, UpdateUserDTO } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
 import z, { success } from "zod";
 
@@ -75,4 +75,36 @@ export class AuthController {
       });
     }
   };
+
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, message: "User ID not provided" });
+      }
+      let parsedData = UpdateUserDTO.safeParse(req.body);
+      if (!parsedData.success) {
+        return res
+          .status(400)
+          .json({ success: false, message: z.prettifyError(parsedData.error) });
+      }
+      if (req.file) {
+        // if file is being uploaded
+        parsedData.data.profilePicture = `/uploads/${req.file.filename}`;
+      }
+      const updatedUser = await userService.updateUser(userId, parsedData.data);
+      return res.status(200).json({
+        success: true,
+        message: "User updated successfully",
+        data: updatedUser,
+      });
+    } catch (error: Error | any) {
+      return res.status(error.statusCode ?? 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
 }
