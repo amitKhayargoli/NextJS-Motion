@@ -15,5 +15,9 @@ router.put(
   uploads.single("image"),
   authController.updateProfile,
 );
+router.get("/me", authorizedMiddleware, authController.me);
+
+router.post("/request-password-reset", authController.sendResetPasswordEmail);
+router.post("/reset-password/:token", authController.resetPassword);
 
 export default router;
