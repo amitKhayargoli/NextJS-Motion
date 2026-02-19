@@ -7,9 +7,17 @@ import {
 } from "../dtos/note.dto";
 import { NoteValidator } from "../dtos/validators/note.validator";
 import { INote } from "../types/note.type";
+import { htmlToText } from "../utils/htmlToText";
+import { summarizeText } from "../utils/summarizer.client";
+import { EmbeddingService } from "./embedding.service";
 
 export class NoteService {
-  constructor(private noteRepository: INoteRepository) {}
+  constructor(
+    private noteRepository: INoteRepository,
+    private prisma: any,
+  ) {}
+
+  private embeddingService = new EmbeddingService(this.prisma);
 
   async createNote(dto: CreateNoteDTO): Promise<NoteResponseDTO> {
     // Validate
@@ -23,10 +31,15 @@ export class NoteService {
       title: dto.title,
       content: dto.content,
       type: dto.type,
+      status: dto.status,
       authorId: dto.authorId,
       workspaceId: dto.workspaceId,
       audioFileId: dto.audioFileId,
     });
+
+    this.embeddingService
+      .embedNoteChunks(note.id)
+      .catch((e) => console.error("EMBED NOTE FAILED:", note.id, e.message));
 
     return new NoteResponseDTO(note);
   }
@@ -51,17 +64,39 @@ export class NoteService {
       summary: dto.summary,
     });
 
-    return new NoteResponseDTO(note);
-  }
+    // Only re-embed if content was provided AND has real text
+    const contentChanged = dto.content !== undefined;
+    const hasText =
+      typeof note.content === "string" && note.content.trim().length > 0;
 
-  async getNoteById(noteId: string): Promise<NoteResponseDTO> {
-    const note = await this.noteRepository.findById(noteId);
+    if (contentChanged && hasText) {
+      // const result = await this.embeddingService.embedNoteChunks(note.id);
 
-    if (!note) {
-      throw new Error("Note not found");
+      // Debounced note chunks
+      const result = await this.embeddingService.debounceEmbedNoteChunks(
+        note.id,
+        1500,
+      );
+      console.log("EMBED RESULT:", note.id, result);
+    } else if (contentChanged && !hasText) {
+      console.log("SKIP RE-EMBED: empty content for note", note.id);
+    } else {
+      console.log("SKIP RE-EMBED: content not provided in request", note.id);
     }
 
     return new NoteResponseDTO(note);
+  }
+
+  async getNoteById(noteId: string, userId: string) {
+    const result = await this.noteRepository.findByIdWithRole(noteId, userId);
+
+    if (!result) throw new Error("Note not found");
+
+    return {
+      note: new NoteResponseDTO(result.note),
+      userRole: result.userRole,
+      canEdit: result.userRole === "EDITOR" || result.userRole === "OWNER",
+    };
   }
 
   async getWorkspaceNotes(workspaceId: string): Promise<NoteResponseDTO[]> {
@@ -83,6 +118,10 @@ export class NoteService {
       totalPages: number;
     };
   }> {
+    const page = Math.max(1, Number(query.page ?? 1));
+    const limit = Math.min(50, Math.max(1, Number(query.limit ?? 10))); // clamp
+    const skip = (page - 1) * limit;
+
     const filters = {
       workspaceId: query.workspaceId,
       authorId: query.authorId,
@@ -90,18 +129,13 @@ export class NoteService {
       searchQuery: query.searchQuery,
     };
 
-    const notes = await this.noteRepository.findAll(filters);
-    const total = await this.noteRepository.count(filters);
-
-    // Apply pagination
-    const page = query.page || 1;
-    const limit = query.limit || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedNotes = notes.slice(startIndex, endIndex);
+    const [notes, total] = await Promise.all([
+      this.noteRepository.findPaged(filters, { skip, limit }),
+      this.noteRepository.count(filters),
+    ]);
 
     return {
-      data: NoteResponseDTO.fromArray(paginatedNotes),
+      data: NoteResponseDTO.fromArray(notes),
       pagination: {
         page,
         limit,
@@ -137,5 +171,17 @@ export class NoteService {
 
     const note = await this.noteRepository.update(noteId, { summary });
     return new NoteResponseDTO(note);
+  }
+
+  async generateSummaryForNote(noteId: string): Promise<NoteResponseDTO> {
+    const note = await this.noteRepository.findById(noteId);
+    if (!note) throw new Error("Note not found");
+
+    const text = htmlToText(note.content || "");
+    if (!text) throw new Error("Nothing to summarize");
+
+    const summary = await summarizeText(text);
+
+    return this.addSummaryToNote(noteId, summary);
   }
 }
