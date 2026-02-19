@@ -1,16 +1,17 @@
-import { NoteType } from "../types/note.type";
+import { NoteType } from "../generated/prisma/enums";
+import { NoteStatus } from "../types/note.type";
 
 export class CreateNoteDTO {
   title: string;
   content: string;
   type?: NoteType;
   coverURL?: string;
+  status: NoteStatus;
   authorId: string;
   workspaceId: string;
   audioFileId?: string;
 
   constructor(data: any) {
-    // ✅ Add validation check
     if (!data) {
       throw new Error("Request body is empty");
     }
@@ -19,6 +20,7 @@ export class CreateNoteDTO {
     this.content = data.content;
     this.coverURL = data.coverURL;
     this.type = data.type || NoteType.MANUAL;
+    this.status = data.status || NoteStatus.DRAFT;
     this.authorId = data.authorId;
     this.workspaceId = data.workspaceId;
     this.audioFileId = data.audioFileId;
@@ -90,7 +92,7 @@ export class GetNotesQueryDTO {
   constructor(query: any) {
     this.workspaceId = query.workspaceId;
     this.authorId = query.authorId;
-    this.type = query.type;
+    this.type = query.NoteType;
     this.searchQuery = query.searchQuery;
     this.page = query.page ? parseInt(query.page) : 1;
     this.limit = query.limit ? parseInt(query.limit) : 10;
