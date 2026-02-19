@@ -8,9 +8,10 @@ import {
 } from "@/lib/actions/workspace-action";
 
 import { useRouter } from "next/navigation";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useAuth } from "../../../context/AuthContext";
 import WorkspaceOnboardingModal from "./_components/WorkspaceOnboardingModal";
+
+const LAST_WORKSPACE_KEY = "lastOpenedWorkspaceId";
 
 export default function Page() {
   const router = useRouter();
@@ -40,13 +41,19 @@ export default function Page() {
     fetchWorkspaces();
   }, [user]);
 
-  // Redirect if the workspaces exist
+  // Redirect to last opened workspace or first workspace
   useEffect(() => {
-    if (loadingWorkspaces) return;
-    console.log("workspaces: " + workspaces);
-    if (workspaces.length > 0) {
-      router.replace(`/workspace/${workspaces[0].id}`);
-    }
+    if (loadingWorkspaces || workspaces.length === 0) return;
+
+    const lastWorkspaceId = localStorage.getItem(LAST_WORKSPACE_KEY);
+
+    const lastWorkspace = lastWorkspaceId
+      ? workspaces.find((w) => w.id === lastWorkspaceId)
+      : null;
+
+    const targetWorkspace = lastWorkspace || workspaces[0];
+
+    router.replace(`/workspace/${targetWorkspace.id}`);
   }, [loadingWorkspaces, workspaces, router]);
 
   const handleCreate = async (name: string) => {
@@ -55,7 +62,7 @@ export default function Page() {
       if (res.success) {
         const newWorkspace = res.data;
 
-        // Redirect to the new workspace page
+        localStorage.setItem(LAST_WORKSPACE_KEY, newWorkspace.id);
         router.push(`/workspace/${newWorkspace.id}`);
       } else {
         alert(res.message || "Failed to create workspace");
@@ -65,14 +72,21 @@ export default function Page() {
     }
   };
 
-  // Join workspace handler
   const handleJoin = async (inviteLink: string) => {
     try {
       const res = await handleJoinWorkspace(inviteLink);
+
       if (res.success) {
         const updated = await handleGetWorkspaces();
-        if (updated.success) setWorkspaces(updated.data);
-      } else alert(res.message || "Failed to join workspace");
+        if (updated.success) {
+          setWorkspaces(updated.data);
+
+          localStorage.setItem(LAST_WORKSPACE_KEY, res.data.id);
+          router.push(`/workspace/${res.data.id}`);
+        }
+      } else {
+        alert(res.message || "Failed to join workspace");
+      }
     } catch (err: any) {
       alert(err.message);
     }
@@ -85,7 +99,9 @@ export default function Page() {
       )}
 
       {loadingWorkspaces && (
-        <DotLottieReact src="/Loading.lottie" loop autoplay />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="h-12 w-12 rounded-full border-4 border-[#d2ff89] border-t-transparent animate-spin" />
+        </div>
       )}
     </>
   );
