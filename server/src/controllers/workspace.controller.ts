@@ -21,6 +21,7 @@ export class WorkspaceController {
     this.getMembers = this.getMembers.bind(this);
     this.joinByInviteLink = this.joinByInviteLink.bind(this);
     this.regenerateInviteLink = this.regenerateInviteLink.bind(this);
+    this.manageRoles = this.manageRoles.bind(this);
   }
 
   async createWorkspace(req: Request, res: Response): Promise<void> {
@@ -47,6 +48,28 @@ export class WorkspaceController {
     }
   }
 
+  async manageRoles(req: Request, res: Response): Promise<void> {
+    try {
+      const { workspaceId } = req.params;
+      const { userId, role } = req.body;
+
+      const dto: UpdateMemberRoleDTO = {
+        workspaceId,
+        userId,
+        role,
+      };
+
+      // Middleware already verified user is owner, so requesterId is not used for permission check
+      await this.workspaceService.updateMemberRole(dto, req.user!.id);
+
+      res.status(200).json({
+        success: true,
+        message: "Role updated successfully",
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
   async updateWorkspace(req: Request, res: Response): Promise<void> {
     try {
       const dto = new UpdateWorkspaceDTO(req.params.id, req.body);
@@ -120,7 +143,7 @@ export class WorkspaceController {
 
   async removeMember(req: Request, res: Response): Promise<void> {
     try {
-      const requesterId = req.body.requesterId; // From auth middleware
+      const requesterId = req.body.requesterId;
       await this.workspaceService.removeMember(
         req.params.id,
         req.params.userId,
@@ -138,7 +161,7 @@ export class WorkspaceController {
 
   async updateMemberRole(req: Request, res: Response): Promise<void> {
     try {
-      const requesterId = req.body.requesterId; // From auth middleware
+      const requesterId = req.body.requesterId;
       const dto = new UpdateMemberRoleDTO(
         req.params.id,
         req.params.userId,
@@ -158,7 +181,7 @@ export class WorkspaceController {
   async getMembers(req: Request, res: Response): Promise<void> {
     try {
       const members = await this.workspaceService.getWorkspaceMembers(
-        req.params.id,
+        req.params.workspaceId,
       );
 
       res.status(200).json({
@@ -170,10 +193,31 @@ export class WorkspaceController {
     }
   }
 
+  //controller
   async joinByInviteLink(req: Request, res: Response): Promise<void> {
     try {
-      const { inviteLink } = req.params;
-      const { userId } = req.body;
+      const { inviteLink } = req.query;
+
+      // Validation
+      if (!inviteLink || typeof inviteLink !== "string") {
+        res.status(400).json({
+          success: false,
+          message: "inviteLink query parameter is required",
+        });
+        return;
+      }
+
+      // Get userId from authenticated user (added by middleware)
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+        return;
+      }
+
       const workspace = await this.workspaceService.joinWorkspaceByInviteLink(
         inviteLink,
         userId,

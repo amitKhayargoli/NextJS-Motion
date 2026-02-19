@@ -4,13 +4,13 @@ import { useState } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { SignupFormData, signupSchema } from "./schema/signupSchema";
-import Modal from "../ui/Modal";
 import bcrypt from "bcryptjs";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/auth.store";
 import api from "@/lib/api/axios";
 import { handleRegister } from "@/lib/actions/auth-action";
+import { SignupFormData, signupSchema } from "../schema/signupSchema";
+import Modal from "../../_components/ui/Modal";
 
 interface SignupModalProps {
   isOpen: boolean;

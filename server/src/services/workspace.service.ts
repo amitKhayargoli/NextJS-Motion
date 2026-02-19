@@ -168,14 +168,7 @@ export class WorkspaceService {
       throw new Error("Cannot change owner role");
     }
 
-    // Check requester is owner
-    const requesterRole = await this.workspaceRepository.getUserRole(
-      dto.workspaceId,
-      requesterId,
-    );
-    if (requesterRole !== WorkspaceRole.OWNER) {
-      throw new Error("Only workspace owner can update member roles");
-    }
+    // Note: Permission check removed - handled by ownerOnly middleware
 
     await this.workspaceRepository.updateMemberRole(
       dto.workspaceId,
@@ -213,7 +206,8 @@ export class WorkspaceService {
       userId,
     );
     if (isMember) {
-      throw new Error("You are already a member of this workspace");
+      // Just return the workspace, don't add again
+      return new WorkspaceResponseDTO(workspace);
     }
 
     // Add user as editor

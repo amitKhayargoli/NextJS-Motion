@@ -5,6 +5,9 @@ import bcryptjs from "bcryptjs";
 import { email } from "zod";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config";
+import { sendEmail } from "../config/email";
+
+const CLIENT_URL = process.env.CLIENT_URL as string;
 
 let userRepository = new UserRepository();
 
@@ -76,5 +79,56 @@ export class UserService {
       throw new HttpError(404, "User not found");
     }
     return updatedUser as UserResponseDTO;
+  }
+
+  async getUserById(userId: string) {
+    const user = await userRepository.getUserById(userId);
+
+    if (!user) {
+      throw new HttpError(404, "User not found");
+    }
+
+    const { passwordHash, ...safeUser } = user as any;
+
+    return safeUser;
+  }
+
+  async sendResetPasswordEmail(email?: string) {
+    if (!email) {
+      throw new HttpError(400, "Email is required");
+    }
+    const user = await userRepository.getUserByEmail(email);
+    if (!user) {
+      throw new HttpError(404, "User not found");
+    }
+
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "1h" }); // 1 hour expiry
+    const resetLink = `${CLIENT_URL}/reset-password?token=${token}`;
+    const html = `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 1 hour.</p>`;
+
+    console.log("CLIENT_URL:", CLIENT_URL);
+    console.log("RESET LINK:", resetLink);
+    await sendEmail(user.email, "Password Reset", html);
+
+    return user;
+  }
+
+  async resetPassword(token?: string, newPassword?: string) {
+    try {
+      if (!token || !newPassword) {
+        throw new HttpError(400, "Token and new password are required");
+      }
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      const userId = decoded.id;
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        throw new HttpError(404, "User not found");
+      }
+      const hashedPassword = await bcryptjs.hash(newPassword, 10);
+      await userRepository.updateUser(userId, { passwordHash: hashedPassword });
+      return user;
+    } catch (error) {
+      throw new HttpError(400, "Invalid or expired token");
+    }
   }
 }

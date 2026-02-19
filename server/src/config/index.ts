@@ -6,6 +6,9 @@ export const PORT: number = process.env.PORT
   ? parseInt(process.env.PORT)
   : 3000;
 
+export const EMAIL_USER = process.env.EMAIL_USER;
+export const EMAIL_PASS = process.env.EMAIL_PASS;
+
 export const MONGODB_URI: string =
   process.env.MONGODB_URI || "mongodb://localhost:27017/defaultdb";
 

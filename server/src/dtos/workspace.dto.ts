@@ -90,12 +90,14 @@ export class WorkspaceMemberDTO {
   role: WorkspaceRole;
   email?: string;
   username?: string;
+  profilePicture?: string;
 
   constructor(member: any) {
     this.userId = member.userId;
     this.role = member.role;
     this.email = member.user?.email;
     this.username = member.user?.username;
+    this.profilePicture = member.user?.profilePicture;
   }
 
   static fromArray(members: any[]): WorkspaceMemberDTO[] {

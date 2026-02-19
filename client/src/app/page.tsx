@@ -1,7 +1,7 @@
 "use client";
 
-import LoginModal from "./_components/auth/LoginModal";
-import SignupModal from "./_components/auth/SignupModal";
+import LoginModal from "./(auth)/_components/LoginModal";
+import SignupModal from "./(auth)/_components/SignupModal";
 import Hero from "./_components/Hero";
 import Navbar from "./_components/Navbar";
 import { useAuthStore } from "@/store/auth.store";

@@ -75,7 +75,7 @@ export default function AccountMenu({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const imageUrl = user?.profilePicture
+  const profilePicture = user?.profilePicture
     ? `${process.env.NEXT_PUBLIC_API_BASE}${user.profilePicture}`
     : "/placeholder-profile.png";
 
@@ -168,7 +168,7 @@ export default function AccountMenu({
           >
             <Avatar
               sx={{ width: 32, height: 32, bgcolor: "#7366ff" }}
-              src={imageUrl || "/placeholder-profile.png"}
+              src={profilePicture || "/placeholder-profile.png"}
             />
           </IconButton>
         </Tooltip>
@@ -187,7 +187,7 @@ export default function AccountMenu({
             setModalOpen(true);
           }}
         >
-          <Avatar src={imageUrl || "/placeholder-profile.png"} />
+          <Avatar src={profilePicture || "/placeholder-profile.png"} />
           {user?.email}
         </MenuItem>
 
@@ -240,7 +240,7 @@ export default function AccountMenu({
                 </div>
               ) : (
                 <img
-                  src={imageUrl}
+                  src={profilePicture}
                   className="w-20 h-20 rounded-full object-cover"
                 />
               )}

@@ -5,13 +5,27 @@ import {
   GetNotesQueryDTO,
 } from "../dtos/note.dto";
 import { NoteService } from "../services/note.service";
+import { NoteType } from "../types/note.type";
 
 export class NoteController {
   constructor(private noteService: NoteService) {}
 
   async createNote(req: Request, res: Response): Promise<void> {
     try {
-      const dto = new CreateNoteDTO(req.body);
+      const authorId = (req as any).user?.id;
+
+      if (!authorId) {
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized: missing user",
+        });
+        return;
+      }
+
+      const dto = new CreateNoteDTO({
+        ...req.body,
+        authorId,
+      });
       const note = await this.noteService.createNote(dto);
 
       res.status(201).json({
@@ -37,16 +51,24 @@ export class NoteController {
     }
   }
 
-  async getNoteById(req: Request, res: Response): Promise<void> {
+  async getNoteById(req: any, res: any) {
     try {
-      const note = await this.noteService.getNoteById(req.params.id);
+      const noteId = req.params.id;
 
-      res.status(200).json({
-        success: true,
-        data: note,
-      });
-    } catch (error) {
-      this.handleError(error, res);
+      const userId = req.user?.id || req.user?._id || req.user?.userId;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized" });
+      }
+
+      const data = await this.noteService.getNoteById(noteId, userId);
+
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      return res
+        .status(404)
+        .json({ success: false, message: err.message || "Note not found" });
     }
   }
 
@@ -78,20 +100,54 @@ export class NoteController {
     }
   }
 
-  async getNotes(req: Request, res: Response): Promise<void> {
-    try {
-      const query = new GetNotesQueryDTO(req.query);
-      const result = await this.noteService.getNotes(query);
+  parseNoteType = (value: unknown): NoteType | undefined => {
+    if (typeof value !== "string") return undefined;
+    return (Object.values(NoteType) as string[]).includes(value)
+      ? (value as NoteType)
+      : undefined;
+  };
 
-      res.status(200).json({
+  async getNotes(req: Request, res: Response) {
+    try {
+      const workspaceId = req.query.workspaceId as string;
+      const type = this.parseNoteType(req.query.type);
+
+      const searchQuery = req.query.searchQuery as string;
+
+      const page = Number(req.query.page || 1);
+      const limit = Number(req.query.limit || 10);
+
+      // from token middleware
+      const authorId = (req as any).user?._id;
+
+      if (!workspaceId) {
+        return res.status(400).json({
+          success: false,
+          message: "workspaceId is required",
+        });
+      }
+
+      const result = await this.noteService.getNotes({
+        workspaceId,
+        authorId,
+        type,
+        searchQuery,
+        page,
+        limit,
+      });
+
+      return res.status(200).json({
         success: true,
         ...result,
       });
     } catch (error) {
-      this.handleError(error, res);
+      console.log("GET NOTES ERROR:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
     }
   }
-
   async deleteNote(req: Request, res: Response): Promise<void> {
     try {
       await this.noteService.deleteNote(req.params.id);
@@ -105,20 +161,21 @@ export class NoteController {
     }
   }
 
-  async addSummary(req: Request, res: Response): Promise<void> {
+  async addSummary(req: any, res: any) {
     try {
-      const { summary } = req.body;
-      const note = await this.noteService.addSummaryToNote(
-        req.params.id,
-        summary,
-      );
+      const noteId = req.params.id;
 
-      res.status(200).json({
+      const updated = await this.noteService.generateSummaryForNote(noteId);
+
+      return res.status(200).json({
         success: true,
-        data: note,
+        data: updated,
       });
-    } catch (error) {
-      this.handleError(error, res);
+    } catch (err: any) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Failed to summarize",
+      });
     }
   }
 
