@@ -17,13 +17,6 @@ export class NoteValidator {
       errors.push("Title cannot exceed 200 characters");
     }
 
-    // Content validation
-    if (!dto.content || dto.content.trim().length === 0) {
-      errors.push("Content is required");
-    } else if (dto.content.length > 100000) {
-      errors.push("Content cannot exceed 100,000 characters");
-    }
-
     // Author ID validation
     if (!dto.authorId || dto.authorId.trim().length === 0) {
       errors.push("Author ID is required");
