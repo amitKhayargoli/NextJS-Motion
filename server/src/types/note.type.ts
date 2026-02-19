@@ -1,7 +1,9 @@
-export enum NoteType {
-  MANUAL = "MANUAL",
-  VOICE_TRANSCRIPT = "VOICE_TRANSCRIPT",
-  MEETING_SUMMARY = "MEETING_SUMMARY",
+import { NoteType, Role } from "../generated/prisma/enums";
+
+export enum NoteStatus {
+  DRAFT = "DRAFT",
+  PUBLISHED = "PUBLISHED",
+  PROCESSING = "PROCESSING",
 }
 
 export interface INote {
@@ -10,6 +12,7 @@ export interface INote {
   content: string;
   summary?: string | null;
   type: NoteType;
+  status: NoteStatus;
   authorId: string;
   workspaceId: string;
   audioFileId?: string | null;
@@ -19,6 +22,11 @@ export interface INote {
   updatedAt: Date;
 }
 
+export type NoteWithRoleResult = {
+  note: INote;
+  userRole: Role;
+};
+
 export interface ICreateNoteData {
   title: string;
   content: string;
@@ -27,6 +35,7 @@ export interface ICreateNoteData {
   authorId: string;
   workspaceId: string;
   audioFileId?: string;
+  status: NoteStatus;
 }
 
 export interface IUpdateNoteData {
@@ -42,3 +51,11 @@ export interface INoteFilters {
   type?: NoteType;
   searchQuery?: string;
 }
+
+export interface INoteListItem {
+  id: string;
+  title: string;
+  type: NoteType;
+  updatedAt: Date;
+}
+export { NoteType };

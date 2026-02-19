@@ -42,7 +42,7 @@ export interface IWorkspaceWithRole {
 export interface IWorkspaceMember {
   userId: string;
   workspaceId: string;
-  WorkspaceRole: WorkspaceRole;
+  role: WorkspaceRole;
   user?: {
     id: string;
     email: string;
