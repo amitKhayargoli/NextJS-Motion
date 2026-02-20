@@ -20,12 +20,20 @@ export class AudioFileRoutes {
       this.audioFileController.uploadAudioFile,
     );
 
+    // Transcribe an uploaded audio file (creates a Note + embeddings)
+    this.router.post(
+      "/audio/:id/transcribe",
+      authorizedMiddleware,
+      this.audioFileController.transcribeAudioFile,
+    );
+
     // Get user's audio files
     this.router.get(
       "/audio/my-files",
       authorizedMiddleware,
       this.audioFileController.getUserAudioFiles,
     );
+
     // Get audio file by ID
     this.router.get(
       "/audio/:id",
