@@ -15,10 +15,12 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-   "@generated/*": ["src/generated/*"]
-    }
-
+      "src/*": ["src/*"],
+      "@/*": ["src/*"],
+      "@generated/*": ["src/generated/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*", "src/generated/prisma"],
+  "include": ["src/**/*", "src/generated/prisma", "src/types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
