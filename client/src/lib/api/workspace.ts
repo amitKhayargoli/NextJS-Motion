@@ -63,3 +63,69 @@ export const joinWorkspaceByInvite = async (inviteLink: string) => {
     throw new Error(message);
   }
 };
+
+export const getWorkspaceMembers = async (workspaceId: string) => {
+  try {
+    const response = await axios.get(API.WORKSPACE.GET_MEMBERS(workspaceId));
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to fetch workspace members";
+
+    throw new Error(message);
+  }
+};
+
+export const updateWorkspaceMemberRole = async (
+  workspaceId: string,
+  userId: string,
+  role: string,
+) => {
+  try {
+    const response = await axios.put(API.WORKSPACE.UPDATE_ROLE(workspaceId), {
+      userId,
+      role,
+    });
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to update member role";
+
+    throw new Error(message);
+  }
+};
+export const removeWorkspaceMember = async (
+  workspaceId: string,
+  userId: string,
+  requesterId: string,
+) => {
+  try {
+    console.log(
+      "REMOVE URL:",
+      API.WORKSPACE.REMOVE_MEMBER(workspaceId, userId),
+    );
+
+    const response = await axios.delete(
+      API.WORKSPACE.REMOVE_MEMBER(workspaceId, userId),
+      {
+        data: { requesterId },
+      },
+    );
+
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to remove member";
+
+    throw new Error(message);
+  }
+};

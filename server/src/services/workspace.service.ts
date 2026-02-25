@@ -189,37 +189,90 @@ export class WorkspaceService {
     return WorkspaceMemberDTO.fromArray(members);
   }
 
+  // async joinWorkspaceByInviteLink(
+  //   inviteLink: string,
+  //   userId: string,
+  // ): Promise<WorkspaceResponseDTO> {
+  //   const workspace =
+  //     await this.workspaceRepository.findByInviteLink(inviteLink);
+
+  //   if (!workspace) {
+  //     throw new Error("Invalid Invite code");
+  //   }
+
+  //   // Check if user is already a member
+  //   const isMember = await this.workspaceRepository.isMember(
+  //     workspace.id,
+  //     userId,
+  //   );
+  //   if (isMember) {
+  //     // Just return the workspace, don't add again
+  //     return new WorkspaceResponseDTO(workspace);
+  //   }
+
+  //   // Add user as editor
+  //   await this.workspaceRepository.addMember(
+  //     workspace.id,
+  //     userId,
+  //     WorkspaceRole.VIEWER,
+  //   );
+
+  //   return new WorkspaceResponseDTO(workspace);
+  // }
+
   async joinWorkspaceByInviteLink(
     inviteLink: string,
     userId: string,
   ): Promise<WorkspaceResponseDTO> {
+    // 1. Log the incoming request
+    console.log(
+      `[WorkspaceService] Join attempt - User: ${userId}, Link: ${inviteLink}`,
+    );
+
     const workspace =
       await this.workspaceRepository.findByInviteLink(inviteLink);
 
+    // 2. Log if the workspace was actually found
     if (!workspace) {
-      throw new Error("Invalid invite link");
+      console.error(`[WorkspaceService] Link not found in DB: ${inviteLink}`);
+      throw new Error("Invalid Invite code");
     }
+    console.log(
+      `[WorkspaceService] Found workspace: ${workspace.name} (${workspace.id})`,
+    );
 
-    // Check if user is already a member
+    // 3. Check membership
     const isMember = await this.workspaceRepository.isMember(
       workspace.id,
       userId,
     );
+
     if (isMember) {
-      // Just return the workspace, don't add again
+      console.log(
+        `[WorkspaceService] User ${userId} is already a member of ${workspace.id}. Skipping add.`,
+      );
       return new WorkspaceResponseDTO(workspace);
     }
 
-    // Add user as editor
+    // 4. Perform the addition
+    console.log(
+      `[WorkspaceService] Adding user ${userId} to workspace ${workspace.id} as VIEWER`,
+    );
+
     await this.workspaceRepository.addMember(
       workspace.id,
       userId,
       WorkspaceRole.VIEWER,
     );
 
+    // 5. Success Log
+    console.log(
+      `[WorkspaceService] Successfully joined user ${userId} to ${workspace.id}`,
+    );
+
+    // Optional: Re-fetch or return updated DTO
     return new WorkspaceResponseDTO(workspace);
   }
-
   async regenerateInviteLink(
     workspaceId: string,
     userId: string,
@@ -230,9 +283,9 @@ export class WorkspaceService {
       throw new Error("Workspace not found");
     }
 
-    // Only owner can regenerate invite link
+    // Only owner can regenerate Invite code
     if (workspace.ownerId !== userId) {
-      throw new Error("Only workspace owner can regenerate invite link");
+      throw new Error("Only workspace owner can regenerate Invite code");
     }
 
     const newInviteLink = this.generateInviteLink();

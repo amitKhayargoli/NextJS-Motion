@@ -244,7 +244,7 @@ export class WorkspaceController {
       res.status(200).json({
         success: true,
         data: workspace,
-        message: "Invite link regenerated successfully",
+        message: "Invite code regenerated successfully",
       });
     } catch (error) {
       this.handleError(error, res);
