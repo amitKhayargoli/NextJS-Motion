@@ -14,6 +14,7 @@ import axios from "axios";
 import api from "@/lib/api/axios";
 import { handleLogin } from "@/lib/actions/auth-action";
 import { setTokenCookie, storeUserData } from "@/lib/cookie";
+import { useAuth } from "../../../../context/AuthContext";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+  const { checkAuth } = useAuth();
 
   const [error, setError] = useState("");
 
@@ -43,10 +45,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       if (!res.success) {
         throw new Error(res.message || "Login failed");
       }
-      toast.success(`Login successful with ${data.email}`);
 
       reset();
       onClose();
+      // router.replace("/workspace");
+      await checkAuth();
       router.replace("/workspace");
     } catch (error: Error | any) {
       toast.error(error.message || "Login failed");

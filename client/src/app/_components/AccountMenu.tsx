@@ -1,317 +1,393 @@
 "use client";
 
 import * as React from "react";
-import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ReactDOM from "react-dom";
-import { toast } from "react-hot-toast";
-import { Mail, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-// MUI
-import {
-  Box,
-  Avatar,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  Divider,
-  IconButton,
-  Tooltip,
-  createTheme,
-  ThemeProvider,
-} from "@mui/material";
-import PersonAdd from "@mui/icons-material/PersonAdd";
-import Logout from "@mui/icons-material/Logout";
+import { Mail, Trash2, LogOut, User, Upload, X } from "lucide-react";
 
-// Auth + Server Action
 import { useAuth } from "../../../context/AuthContext";
-import { clearAuthCookies } from "@/lib/cookie";
 import { handleUpdateProfile } from "@/lib/actions/auth-action";
 
-/* -------------------- THEME -------------------- */
-const darkTheme = createTheme({ palette: { mode: "dark" } });
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 
-/* -------------------- MODAL -------------------- */
-const Modal = ({ isOpen, children }: any) => {
-  if (!isOpen) return null;
-
-  return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#1d1f21] shadow-lg overflow-hidden">
-        {children}
-      </div>
-    </div>,
-    document.body,
-  );
-};
-
-/* -------------------- SCHEMA -------------------- */
 const updateProfileSchema = z.object({
-  email: z.string().email(),
-  username: z.string().min(2),
+  email: z.string().email("Enter a valid email"),
+  username: z.string().min(2, "Username must be at least 2 characters"),
   image: z.instanceof(File).optional(),
 });
 
 type UpdateProfileData = z.infer<typeof updateProfileSchema>;
 
-interface AccountMenuProps {
+type AccountMenuProps = {
   isModalOpen: boolean;
   setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+
+  /** If true: do NOT render the dropdown/avatar trigger (Sidebar already has avatar). */
+  hideTrigger?: boolean;
+
+  /** Optional custom trigger node if you DO want a trigger */
+  triggerNode?: React.ReactNode;
+};
+
+function initials(username?: string, email?: string) {
+  const base = (username || email || "U").trim();
+  const parts = base.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
 }
 
-/* -------------------- COMPONENT -------------------- */
 export default function AccountMenu({
   isModalOpen,
   setIsModalOpen,
+  hideTrigger = false,
+  triggerNode,
 }: AccountMenuProps) {
-  const { user, setUser, logout } = useAuth();
   const router = useRouter();
+  const { user, setUser, logout } = useAuth();
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const profilePicture = user?.profilePicture
-    ? `${process.env.NEXT_PUBLIC_API_BASE}${user.profilePicture}`
-    : "/placeholder-profile.png";
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const profilePictureSrc = React.useMemo(() => {
+    if (!user?.profilePicture) return undefined;
+    return `${process.env.NEXT_PUBLIC_API_BASE}${user.profilePicture}`;
+  }, [user?.profilePicture]);
 
-  const openMenu = Boolean(anchorEl);
+  const form = useForm<UpdateProfileData>({
+    resolver: zodResolver(updateProfileSchema),
+    defaultValues: {
+      email: "",
+      username: "",
+      image: undefined,
+    },
+  });
 
   const {
     register,
     handleSubmit,
     control,
-    formState: { isSubmitting },
-  } = useForm<UpdateProfileData>({
-    resolver: zodResolver(updateProfileSchema),
-    values: {
+    reset,
+    formState: { isSubmitting, errors },
+  } = form;
+
+  // Keep form synced with user changes (login/logout/profile update)
+  React.useEffect(() => {
+    reset({
       email: user?.email || "",
       username: user?.username || "",
-    },
-  });
+      image: undefined,
+    });
+  }, [user?.email, user?.username, reset]);
 
-  /* -------------------- IMAGE HANDLERS -------------------- */
-  const handleImageChange = (
-    file: File | undefined,
-    onChange: (file: File | undefined) => void,
-  ) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setPreviewImage(reader.result as string);
-      reader.readAsDataURL(file);
-    } else {
-      setPreviewImage(null);
-    }
-    onChange(file);
-  };
+  // Cleanup preview object URL
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
-  const removeImage = (onChange?: (file?: File) => void) => {
-    setPreviewImage(null);
+  const openFilePicker = () => fileInputRef.current?.click();
+
+  const clearPreview = (onChange?: (v?: File) => void) => {
     onChange?.(undefined);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  /* -------------------- SUBMIT -------------------- */
   const onSubmit = async (data: UpdateProfileData) => {
     try {
       const formData = new FormData();
       formData.append("email", data.email);
       formData.append("username", data.username);
-
-      if (data.image) {
-        formData.append("image", data.image);
-      }
+      if (data.image) formData.append("image", data.image);
 
       const response = await handleUpdateProfile(formData);
+      if (!response?.success)
+        throw new Error(response?.message || "Update failed");
 
-      if (!response.success) {
-        throw new Error(response.message || "Update failed");
-      }
+      toast.success("Profile updated");
 
-      toast.success("Profile updated successfully");
-
-      // Optional: sync updated user locally
       setUser?.((prev: any) => ({
         ...prev,
         email: data.email,
         username: data.username,
-        profilePicture: response.data.profilePicture ?? prev.profilePicture,
+        profilePicture: response?.data?.profilePicture ?? prev?.profilePicture,
       }));
 
-      setPreviewImage(null);
-      setModalOpen(false);
+      setIsModalOpen(false);
+      clearPreview();
     } catch (err: any) {
-      toast.error(err.message || "Profile update failed");
+      toast.error(err?.message || "Profile update failed");
     }
   };
 
-  /* -------------------- LOGOUT -------------------- */
   const handleLogout = async () => {
-    logout();
-    router.push("/");
+    try {
+      await logout();
+      toast.success("Logged out");
+      setIsModalOpen(false);
+      router.push("/");
+    } catch (e: any) {
+      toast.error(e?.message || "Logout failed");
+    }
   };
 
-  /* -------------------- UI -------------------- */
+  const trigger = triggerNode ? (
+    triggerNode
+  ) : (
+    <button type="button" className="outline-none">
+      <Avatar className="h-8 w-8">
+        {/* IMPORTANT: render AvatarImage only when src exists */}
+        {profilePictureSrc ? (
+          <AvatarImage
+            src={profilePictureSrc}
+            className="aspect-square object-cover"
+          />
+        ) : null}
+        <AvatarFallback className="bg-white/10 text-white">
+          {initials(user?.username, user?.email)}
+        </AvatarFallback>
+      </Avatar>
+    </button>
+  );
+
   return (
-    <ThemeProvider theme={darkTheme}>
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        <Tooltip title="Account settings">
-          <IconButton
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-            size="small"
+    <>
+      {/* Dropdown trigger is optional (Sidebar can hide it) */}
+      {!hideTrigger && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            align="end"
+            className="w-64 bg-[#121212] border border-white/10 text-white"
           >
-            <Avatar
-              sx={{ width: 32, height: 32, bgcolor: "#7366ff" }}
-              src={profilePicture || "/placeholder-profile.png"}
-            />
-          </IconButton>
-        </Tooltip>
-      </Box>
+            <DropdownMenuLabel className="text-white/80">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {profilePictureSrc ? (
+                    <AvatarImage
+                      src={profilePictureSrc}
+                      className="aspect-square object-cover"
+                    />
+                  ) : null}
+                  <AvatarFallback className="bg-white/10 text-white">
+                    {initials(user?.username, user?.email)}
+                  </AvatarFallback>
+                </Avatar>
 
-      <Menu
-        anchorEl={anchorEl}
-        open={openMenu}
-        onClose={() => setAnchorEl(null)}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        <MenuItem
-          onClick={() => {
-            setAnchorEl(null);
-            setModalOpen(true);
-          }}
-        >
-          <Avatar src={profilePicture || "/placeholder-profile.png"} />
-          {user?.email}
-        </MenuItem>
-
-        <Divider />
-
-        <MenuItem component={Link} href="/login">
-          <ListItemIcon>
-            <PersonAdd fontSize="small" />
-          </ListItemIcon>
-          Add another account
-        </MenuItem>
-
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <Logout fontSize="small" />
-          </ListItemIcon>
-          Logout
-        </MenuItem>
-      </Menu>
-
-      {/* -------------------- MODAL -------------------- */}
-      <Modal isOpen={modalOpen}>
-        <div className="p-8">
-          <h2 className="text-xl font-bold mb-6 dark:text-white">
-            Edit Profile
-          </h2>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Image */}
-            <div className="flex items-center gap-6">
-              {previewImage ? (
-                <div className="relative">
-                  <img
-                    src={previewImage}
-                    className="w-20 h-20 rounded-full object-cover"
-                  />
-                  <Controller
-                    name="image"
-                    control={control}
-                    render={({ field: { onChange } }) => (
-                      <button
-                        type="button"
-                        onClick={() => removeImage(onChange)}
-                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  />
+                <div className="min-w-0">
+                  <div className="font-medium truncate">
+                    {user?.username || "User"}
+                  </div>
+                  <div className="text-xs text-white/50 truncate">
+                    {user?.email || "No email"}
+                  </div>
                 </div>
-              ) : (
-                <img
-                  src={profilePicture}
-                  className="w-20 h-20 rounded-full object-cover"
-                />
-              )}
+              </div>
+            </DropdownMenuLabel>
 
-              <Controller
-                name="image"
-                control={control}
-                render={({ field: { onChange } }) => (
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      handleImageChange(e.target.files?.[0], onChange)
-                    }
+            <DropdownMenuSeparator className="bg-white/10" />
+
+            <DropdownMenuItem
+              className="cursor-pointer hover:bg-white/5 focus:bg-white/5"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <User className="h-4 w-4 mr-2 text-white/70" />
+              Edit profile
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              asChild
+              className="cursor-pointer hover:bg-white/5 focus:bg-white/5"
+            >
+              <Link href="/login">
+                <Mail className="h-4 w-4 mr-2 text-white/70" />
+                Add another account
+              </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="bg-white/10" />
+
+            <DropdownMenuItem
+              className="cursor-pointer text-red-200 hover:bg-red-500/10 focus:bg-red-500/10"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      {/* Dialog is ALWAYS mounted so Sidebar can open it even when hideTrigger=true */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-[#121212] text-white border border-white/10 rounded-2xl max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Profile</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="flex items-center gap-5">
+              <Avatar className="h-20 w-20 shrink-0 overflow-hidden rounded-full">
+                {/* IMPORTANT: avoid empty src, render only when we have it */}
+                {previewUrl || profilePictureSrc ? (
+                  <AvatarImage
+                    src={previewUrl || profilePictureSrc}
+                    className="aspect-square object-cover"
                   />
-                )}
-              />
-            </div>
+                ) : null}
+                <AvatarFallback className="bg-white/10 text-white text-lg">
+                  {initials(user?.username, user?.email)}
+                </AvatarFallback>
+              </Avatar>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4" />
-                <input
-                  {...register("email")}
-                  className="pl-10 p-2 w-full border rounded-md dark:bg-transparent"
+              <div className="flex flex-col gap-2">
+                <Controller
+                  name="image"
+                  control={control}
+                  render={({ field: { onChange } }) => (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+
+                          // Replace old preview
+                          if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+                          const url = URL.createObjectURL(file);
+                          setPreviewUrl(url);
+                          onChange(file);
+                        }}
+                      />
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={openFilePicker}
+                          className="bg-white/10 hover:bg-white/15 border border-white/10"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload
+                        </Button>
+
+                        {previewUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="hover:bg-white/10"
+                            onClick={() => clearPreview(onChange)}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-white/40">
+                        PNG/JPG recommended • Max 5MB
+                      </div>
+                    </>
+                  )}
                 />
               </div>
             </div>
 
-            {/* Username */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Username</label>
-              <input
-                {...register("username")}
-                className="p-2 w-full border rounded-md dark:bg-transparent"
-              />
+            <Separator className="bg-white/10" />
+
+            <div className="space-y-1.5">
+              <label className="text-sm text-white/70">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
+                <Input
+                  {...register("email")}
+                  className="pl-10 bg-black/30 border-white/10 text-white placeholder:text-white/40"
+                />
+              </div>
+              {errors.email && (
+                <p className="text-xs text-red-400">{errors.email.message}</p>
+              )}
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-between pt-4">
-              <button
-                type="button"
-                className="flex items-center gap-2 text-red-600"
-              >
-                <Trash2 size={16} />
-                Delete user
-              </button>
+            <div className="space-y-1.5">
+              <label className="text-sm text-white/70">Username</label>
+              <Input
+                {...register("username")}
+                className="bg-black/30 border-white/10 text-white placeholder:text-white/40"
+              />
+              {errors.username && (
+                <p className="text-xs text-red-400">
+                  {errors.username.message}
+                </p>
+              )}
+            </div>
 
-              <div className="flex gap-4">
-                <button
+            <Separator className="bg-white/10" />
+
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-red-200 hover:text-red-100 hover:bg-red-500/10"
+                onClick={() => toast("Delete functionality not wired yet")}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete user
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
                   type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="border px-4 py-2 rounded-md"
+                  variant="ghost"
+                  className="hover:bg-white/10"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isSubmitting}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+
+                <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-black text-white px-6 py-2 rounded-md"
+                  className="bg-white/10 hover:bg-white/15 border border-white/10"
                 >
                   {isSubmitting ? "Saving..." : "Save changes"}
-                </button>
+                </Button>
               </div>
             </div>
           </form>
-        </div>
-      </Modal>
-    </ThemeProvider>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
