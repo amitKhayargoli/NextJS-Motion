@@ -211,4 +211,37 @@ export class NoteController {
       });
     }
   }
+
+  async getTranscriptByAudioFileId(req: Request, res: Response) {
+    try {
+      const { audioFileId } = req.params;
+
+      if (!audioFileId) {
+        return res.status(400).json({
+          success: false,
+          message: "audioFileId is required",
+        });
+      }
+
+      const transcript =
+        await this.noteService.getTranscriptByAudioFileId(audioFileId);
+
+      if (!transcript) {
+        return res.status(404).json({
+          success: false,
+          message: "Transcript not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: transcript,
+      });
+    } catch (e: any) {
+      return res.status(500).json({
+        success: false,
+        message: e.message,
+      });
+    }
+  }
 }

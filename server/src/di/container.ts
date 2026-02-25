@@ -13,6 +13,13 @@ import { AudioFileService } from "../services/audioFile.service";
 import { AudioFileController } from "../controllers/audioFile.controller";
 import { AudioFileRoutes } from "../routes/audioFile.route";
 
+import { RagService } from "../services/rag.service";
+import { RagController } from "../controllers/rag.controller";
+import { RagRoutes } from "../routes/rag.route";
+
+import { EmbeddingService } from "../services/embedding.service";
+import { TranscriberService } from "../services/transcription.service";
+
 export class DIContainer {
   private static instance: DIContainer;
   private prisma: PrismaClient;
@@ -35,15 +42,30 @@ export class DIContainer {
   private audioFileController: AudioFileController;
   private audioFileRoutes: AudioFileRoutes;
 
+  // Rag Layer
+  private ragService: RagService;
+  private ragController: RagController;
+  private ragRoutes: RagRoutes;
+
+  // Microservices layer
+  private embeddingService: EmbeddingService;
+  private transcriberService: TranscriberService;
+
   // Add combined router
   private apiRouter: Router;
 
   private constructor() {
     this.prisma = new PrismaClient();
 
+    this.embeddingService = new EmbeddingService(this.prisma);
+
+    const transcriberUrl =
+      process.env.TRANSCRIBER_URL || "http://localhost:8001";
+    this.transcriberService = new TranscriberService(transcriberUrl);
+
     // Note DI
     this.noteRepository = new NoteRepository(this.prisma);
-    this.noteService = new NoteService(this.noteRepository);
+    this.noteService = new NoteService(this.noteRepository, this.prisma);
     this.noteController = new NoteController(this.noteService);
     this.noteRoutes = new NoteRoutes(this.noteController);
 
@@ -56,14 +78,25 @@ export class DIContainer {
     // Initialize AudioFile layer
     this.audioFileRepository = new AudioFileRepository(this.prisma);
     this.audioFileService = new AudioFileService(this.audioFileRepository);
-    this.audioFileController = new AudioFileController(this.audioFileService);
+    this.audioFileController = new AudioFileController(
+      this.audioFileService,
+      this.prisma,
+      this.transcriberService,
+      this.embeddingService,
+    );
     this.audioFileRoutes = new AudioFileRoutes(this.audioFileController);
+
+    // RAG DI
+    this.ragService = new RagService(this.prisma);
+    this.ragController = new RagController(this.prisma, this.ragService);
+    this.ragRoutes = new RagRoutes(this.ragController);
 
     // Combine all routes
     this.apiRouter = Router();
     this.apiRouter.use(this.noteRoutes.getRouter());
     this.apiRouter.use(this.workspaceRoutes.getRouter());
     this.apiRouter.use(this.audioFileRoutes.getRouter());
+    this.apiRouter.use(this.ragRoutes.getRouter());
   }
 
   static getInstance(): DIContainer {
@@ -87,6 +120,10 @@ export class DIContainer {
 
   getAudioFileRoutes(): AudioFileRoutes {
     return this.audioFileRoutes;
+  }
+
+  getRagRoutes(): RagRoutes {
+    return this.ragRoutes;
   }
 
   async closeConnections(): Promise<void> {

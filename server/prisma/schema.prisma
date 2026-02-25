@@ -15,6 +15,12 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../ERD.svg"
+  theme    = "forest"
+}
+
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
@@ -92,14 +98,15 @@ model AccessRequest {
 // ==============================
 
 model Note {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
   title     String
-  content   String   @db.String // Raw text/rich content
-  summary   String?  @db.String // AI Generated Summary
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  type      NoteType @default(MANUAL) // MANUAL, VOICE_TRANSCRIPT, MEETING_SUMMARY
-  isSynced  Boolean  @default(false) // Tracking for local-first sync status
+  content   String     @default("") @db.String // Raw text/rich content
+  summary   String?    @db.String // AI Generated Summary
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  type      NoteType   @default(MANUAL) // MANUAL, VOICE_TRANSCRIPT, MEETING_SUMMARY
+  status    NoteStatus @default(DRAFT)
+  isSynced  Boolean    @default(false) // Tracking for local-first sync status
 
   // Relationships (Many side)
   authorId    String    @db.ObjectId
@@ -112,7 +119,7 @@ model Note {
   audioFile   AudioFile? @relation(fields: [audioFileId], references: [id])
 
   // Link to vector embedding for RAG
-  vectorEmbedding VectorEmbedding?
+  noteChunkEmbeddings NoteChunkEmbedding[]
 }
 
 model AudioFile {
@@ -132,21 +139,50 @@ model AudioFile {
   meetingLink MeetingLink? // Optional link if audio was captured from a meeting
 }
 
-model VectorEmbedding {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  noteId String @unique @db.ObjectId
-  note   Note   @relation(fields: [noteId], references: [id])
+model NoteChunkEmbedding {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  noteId      String @db.ObjectId
+  workspaceId String @db.ObjectId
 
-  // This field will hold the 1536-dimensional vector array.
-  // MongoDB requires this to be a type that supports array indexing for Vector Search.
-  // In Prisma/MongoDB, this is typically mapped to a BSON Array.
-  vector Float[]
+  chunkIndex Int
+  chunkText  String       @db.String
+  vector     Float[]
+  status     VectorStatus @default(PENDING)
 
-  // Status helps track if the vector is ready for search (e.g., PENDING, READY, FAILED)
-  status VectorStatus @default(PENDING)
+  note Note @relation(fields: [noteId], references: [id])
 
-  // Custom index for MongoDB Atlas Vector Search (configured externally in Atlas, but reflected here)
-  @@index([vector])
+  @@index([workspaceId])
+  @@index([noteId])
+  @@index([vector]) // for Atlas vector search
+}
+
+model ChatThread {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String @db.ObjectId
+  userId      String @db.ObjectId
+
+  title     String   @default("New chat")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([workspaceId, updatedAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  threadId  String   @db.ObjectId
+  role      String // "user" | "assistant"
+  content   String   @db.String
+  createdAt DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id])
+
+  @@index([threadId])
+  @@index([createdAt])
 }
 
 // ==============================
@@ -228,4 +264,10 @@ enum RequestStatus {
   PENDING
   APPROVED
   DENIED
+}
+
+enum NoteStatus {
+  DRAFT
+  PUBLISHED
+  PROCESSING
 }
