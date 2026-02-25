@@ -14,7 +14,7 @@ export default async function proxy(request: NextRequest) {
   );
 
   // Not authenticated → block protected routes
-  if (!token && !isPublicRoute) {
+  if (token && isPublicRoute) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -27,5 +27,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/user/:path*", "/login", "/register", "/workspace:path*"],
+  matcher: ["/user/:path*", "/login", "/register", "/workspace/:path*"],
 };
