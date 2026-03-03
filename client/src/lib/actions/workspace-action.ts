@@ -9,6 +9,11 @@ import {
   getWorkspaceMembers,
   updateWorkspaceMemberRole,
   removeWorkspaceMember,
+  requestEditAccess,
+  getMyAccessRequest,
+  getPendingRequests,
+  approveAccessRequest,
+  denyAccessRequest,
 } from "../api/workspace";
 
 export const handleCreateWorkspace = async (formData: any) => {
@@ -173,5 +178,97 @@ export const handleRemoveMember = async (
       success: false,
       message: err.message || "Failed to remove member",
     };
+  }
+};
+
+export const handleRequestEditAccess = async (workspaceId: string) => {
+  try {
+    const res = await requestEditAccess(workspaceId);
+    if (res.success) {
+      return { success: true, message: res.message || "Edit access requested" };
+    }
+    return {
+      success: false,
+      message: res.message || "Failed to request edit access",
+    };
+  } catch (err: Error | any) {
+    return {
+      success: false,
+      message: err.message || "Failed to request edit access",
+    };
+  }
+};
+
+export const handleGetMyAccessRequest = async (workspaceId: string) => {
+  try {
+    const res = await getMyAccessRequest(workspaceId);
+    if (res.success) {
+      return { success: true, data: res.data };
+    }
+    return {
+      success: false,
+      message: res.message || "Failed to get access request",
+    };
+  } catch (err: Error | any) {
+    return {
+      success: false,
+      message: err.message || "Failed to get access request",
+    };
+  }
+};
+
+export const handleGetPendingRequests = async (workspaceId: string) => {
+  try {
+    const res = await getPendingRequests(workspaceId);
+    if (res.success) {
+      return { success: true, data: res.data };
+    }
+    return {
+      success: false,
+      message: res.message || "Failed to fetch pending requests",
+    };
+  } catch (err: Error | any) {
+    return {
+      success: false,
+      message: err.message || "Failed to fetch pending requests",
+    };
+  }
+};
+
+export const handleApproveRequest = async (
+  workspaceId: string,
+  requestId: string,
+) => {
+  try {
+    const res = await approveAccessRequest(workspaceId, requestId);
+    if (res.success) {
+      revalidatePath(`/workspace/${workspaceId}`);
+      return { success: true, message: res.message || "Request approved" };
+    }
+    return {
+      success: false,
+      message: res.message || "Failed to approve request",
+    };
+  } catch (err: Error | any) {
+    return {
+      success: false,
+      message: err.message || "Failed to approve request",
+    };
+  }
+};
+
+export const handleDenyRequest = async (
+  workspaceId: string,
+  requestId: string,
+) => {
+  try {
+    const res = await denyAccessRequest(workspaceId, requestId);
+    if (res.success) {
+      revalidatePath(`/workspace/${workspaceId}`);
+      return { success: true, message: res.message || "Request denied" };
+    }
+    return { success: false, message: res.message || "Failed to deny request" };
+  } catch (err: Error | any) {
+    return { success: false, message: err.message || "Failed to deny request" };
   }
 };

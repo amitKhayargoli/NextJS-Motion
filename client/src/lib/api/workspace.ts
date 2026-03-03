@@ -129,3 +129,89 @@ export const removeWorkspaceMember = async (
     throw new Error(message);
   }
 };
+
+export const requestEditAccess = async (workspaceId: string) => {
+  try {
+    const response = await axios.post(
+      API.WORKSPACE.REQUEST_ACCESS(workspaceId),
+    );
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to request edit access";
+    throw new Error(message);
+  }
+};
+
+export const getMyAccessRequest = async (workspaceId: string) => {
+  try {
+    const response = await axios.get(
+      API.WORKSPACE.MY_ACCESS_REQUEST(workspaceId),
+    );
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to get access request";
+    throw new Error(message);
+  }
+};
+
+export const getPendingRequests = async (workspaceId: string) => {
+  try {
+    const response = await axios.get(
+      API.WORKSPACE.PENDING_REQUESTS(workspaceId),
+    );
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to fetch pending requests";
+    throw new Error(message);
+  }
+};
+
+export const approveAccessRequest = async (
+  workspaceId: string,
+  requestId: string,
+) => {
+  try {
+    const response = await axios.put(
+      API.WORKSPACE.APPROVE_REQUEST(workspaceId, requestId),
+    );
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to approve request";
+    throw new Error(message);
+  }
+};
+
+export const denyAccessRequest = async (
+  workspaceId: string,
+  requestId: string,
+) => {
+  try {
+    const response = await axios.put(
+      API.WORKSPACE.DENY_REQUEST(workspaceId, requestId),
+    );
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to deny request";
+    throw new Error(message);
+  }
+};
