@@ -104,3 +104,38 @@ export class WorkspaceMemberDTO {
     return members.map((member) => new WorkspaceMemberDTO(member));
   }
 }
+
+export class AccessRequestDTO {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  status: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    profilePicture?: string | null;
+  };
+
+  constructor(raw: any) {
+    this.id = raw.id;
+    this.workspaceId = raw.workspaceId;
+    this.userId = raw.userId;
+    this.status = raw.status;
+    this.createdAt =
+      raw.createdAt instanceof Date
+        ? raw.createdAt.toISOString()
+        : raw.createdAt;
+    this.user = {
+      id: raw.user?.id ?? raw.userId,
+      username: raw.user?.username ?? "",
+      email: raw.user?.email ?? "",
+      profilePicture: raw.user?.profilePicture ?? null,
+    };
+  }
+
+  static fromArray(raws: any[]): AccessRequestDTO[] {
+    return raws.map((r) => new AccessRequestDTO(r));
+  }
+}
