@@ -120,7 +120,7 @@ export default function ResetPasswordModal({
           toast.success("Password has been reset successfully.");
           onClose();
           setForm.reset();
-          return router.push("/login");
+          return router.push("/");
         }
 
         throw new Error(result.message || "Failed to reset password");
@@ -325,7 +325,7 @@ export default function ResetPasswordModal({
               type="button"
               onClick={() => {
                 onClose();
-                router.push("/login");
+                router.push("/");
               }}
               className="w-full text-sm text-[#AE4700] hover:underline"
             >
