@@ -55,20 +55,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      // 1) clear auth cookies/token
       await clearAuthCookies();
 
-      // 2) ✅ clear user-scoped localStorage keys
       try {
         localStorage.removeItem("lastOpenedWorkspaceId");
         localStorage.removeItem("motionai-workspace-store");
-        // if you persist other stores, clear them too:
         localStorage.removeItem("motionai-notes-store");
       } catch {}
 
-      // 3) ✅ reset zustand in-memory state (prevents previous user's sidebar)
       try {
-        // Add reset() to your stores if you don’t have it,
         // or use setWorkspaces([]) etc.
         useWorkspaceStore.getState().setWorkspaces([]);
         useWorkspaceStore.getState().setActiveWorkspaceId(null);
@@ -86,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
 
       // 5) redirect
-      router.replace("/login");
+      router.replace("/");
       router.refresh();
     } catch (error) {
       console.error("Logout failed:", error);
