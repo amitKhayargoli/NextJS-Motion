@@ -1,4 +1,3 @@
-import { AccessRequest } from "@generated/prisma/client";
 import {
   IWorkspace,
   ICreateWorkspaceData,
@@ -45,20 +44,20 @@ export interface IWorkspaceRepository {
   requestEditAccess(workspaceId: string, userId: string): Promise<void>;
   approveEditAccess(requestId: string): Promise<void>;
   denyEditAccess(requestId: string): Promise<void>;
-  getPendingRequests(workspaceId: string): Promise<AccessRequest[]>;
+  getPendingRequests(workspaceId: string): Promise<any[]>;
+  getMyAccessRequest(workspaceId: string, userId: string): Promise<any | null>;
+  cancelUserAccessRequests(workspaceId: string, userId: string): Promise<void>;
+  approveUserAccessRequests(workspaceId: string, userId: string): Promise<void>;
 }
 
 export class WorkspaceRepository implements IWorkspaceRepository {
   constructor(private prisma: PrismaClient) {}
 
   async requestEditAccess(workspaceId: string, userId: string): Promise<void> {
-    const existing = await this.prisma.accessRequest.findFirst({
-      where: { workspaceId, userId, status: "PENDING" },
-    });
-    if (existing) return; // already requested
-
-    await this.prisma.accessRequest.create({
-      data: { workspaceId, userId },
+    await this.prisma.accessRequest.upsert({
+      where: { unique_workspace_user_request: { workspaceId, userId } },
+      create: { workspaceId, userId, status: "PENDING" },
+      update: { status: "PENDING" },
     });
   }
 
@@ -89,10 +88,40 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     });
   }
 
-  async getPendingRequests(workspaceId: string): Promise<AccessRequest[]> {
+  async getPendingRequests(workspaceId: string): Promise<any[]> {
     return this.prisma.accessRequest.findMany({
       where: { workspaceId, status: "PENDING" },
       include: { user: true },
+    });
+  }
+
+  async getMyAccessRequest(
+    workspaceId: string,
+    userId: string,
+  ): Promise<any | null> {
+    return this.prisma.accessRequest.findFirst({
+      where: { workspaceId, userId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async cancelUserAccessRequests(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.prisma.accessRequest.updateMany({
+      where: { workspaceId, userId, status: { in: ["PENDING", "APPROVED"] } },
+      data: { status: "DENIED" },
+    });
+  }
+
+  async approveUserAccessRequests(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.prisma.accessRequest.updateMany({
+      where: { workspaceId, userId, status: "PENDING" },
+      data: { status: "APPROVED" },
     });
   }
 
