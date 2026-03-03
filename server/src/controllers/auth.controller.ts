@@ -50,7 +50,9 @@ export class AuthController {
           .json({ success: false, errors: z.prettifyError(parsedData.error) });
       }
 
-      const { token, existingUser } = await this.userService.login(parsedData.data);
+      const { token, existingUser } = await this.userService.login(
+        parsedData.data,
+      );
       return res.status(200).json({
         success: true,
         data: existingUser,
@@ -101,7 +103,10 @@ export class AuthController {
         // if file is being uploaded
         parsedData.data.profilePicture = `/uploads/${req.file.filename}`;
       }
-      const updatedUser = await this.userService.updateUser(userId, parsedData.data);
+      const updatedUser = await this.userService.updateUser(
+        userId,
+        parsedData.data,
+      );
       return res.status(200).json({
         success: true,
         message: "User updated successfully",
