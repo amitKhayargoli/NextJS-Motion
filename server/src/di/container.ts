@@ -17,8 +17,18 @@ import { RagService } from "../services/rag.service";
 import { RagController } from "../controllers/rag.controller";
 import { RagRoutes } from "../routes/rag.route";
 
+import { TaskRepository } from "../repositories/task.repository";
+import { TaskService } from "../services/task.service";
+import { TaskController } from "../controllers/task.controller";
+import { TaskRoutes } from "../routes/task.route";
+
 import { EmbeddingService } from "../services/embedding.service";
 import { TranscriberService } from "../services/transcription.service";
+
+import { UserRepository } from "../repositories/user.repository";
+import { UserService } from "../services/user.service";
+import { AuthController } from "../controllers/auth.controller";
+import { AuthRoutes } from "../routes/auth.route";
 
 export class DIContainer {
   private static instance: DIContainer;
@@ -47,9 +57,21 @@ export class DIContainer {
   private ragController: RagController;
   private ragRoutes: RagRoutes;
 
+  // Task Layer
+  private taskRepository: TaskRepository;
+  private taskService: TaskService;
+  private taskController: TaskController;
+  private taskRoutes: TaskRoutes;
+
   // Microservices layer
   private embeddingService: EmbeddingService;
   private transcriberService: TranscriberService;
+
+  // Auth Layer
+  private userRepository: UserRepository;
+  private userService: UserService;
+  private authController: AuthController;
+  private authRoutes: AuthRoutes;
 
   // Add combined router
   private apiRouter: Router;
@@ -91,12 +113,25 @@ export class DIContainer {
     this.ragController = new RagController(this.prisma, this.ragService);
     this.ragRoutes = new RagRoutes(this.ragController);
 
+    // Task DI
+    this.taskRepository = new TaskRepository(this.prisma);
+    this.taskService = new TaskService(this.taskRepository);
+    this.taskController = new TaskController(this.taskService);
+    this.taskRoutes = new TaskRoutes(this.taskController);
+
+    // Auth DI
+    this.userRepository = new UserRepository(this.prisma);
+    this.userService = new UserService(this.userRepository);
+    this.authController = new AuthController(this.userService);
+    this.authRoutes = new AuthRoutes(this.authController);
+
     // Combine all routes
     this.apiRouter = Router();
     this.apiRouter.use(this.noteRoutes.getRouter());
     this.apiRouter.use(this.workspaceRoutes.getRouter());
     this.apiRouter.use(this.audioFileRoutes.getRouter());
     this.apiRouter.use(this.ragRoutes.getRouter());
+    this.apiRouter.use(this.taskRoutes.getRouter());
   }
 
   static getInstance(): DIContainer {
@@ -124,6 +159,14 @@ export class DIContainer {
 
   getRagRoutes(): RagRoutes {
     return this.ragRoutes;
+  }
+
+  getTaskRoutes(): TaskRoutes {
+    return this.taskRoutes;
+  }
+
+  getAuthRoutes(): AuthRoutes {
+    return this.authRoutes;
   }
 
   async closeConnections(): Promise<void> {

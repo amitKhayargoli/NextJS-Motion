@@ -1,11 +1,19 @@
 import { Request, Response } from "express";
 import { CreateUserDTO, LoginUserDTO, UpdateUserDTO } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
-import z, { success } from "zod";
-
-let userService = new UserService();
+import z from "zod";
 
 export class AuthController {
+  constructor(private userService: UserService) {
+    this.register = this.register.bind(this);
+    this.login = this.login.bind(this);
+    this.getAllUsers = this.getAllUsers.bind(this);
+    this.updateProfile = this.updateProfile.bind(this);
+    this.me = this.me.bind(this);
+    this.sendResetPasswordEmail = this.sendResetPasswordEmail.bind(this);
+    this.resetPassword = this.resetPassword.bind(this);
+  }
+
   //1. Register User
   async register(req: Request, res: Response) {
     try {
@@ -18,7 +26,7 @@ export class AuthController {
         });
       }
       const userData: CreateUserDTO = parsedData.data;
-      const newUser = await userService.createUser(userData);
+      const newUser = await this.userService.createUser(userData);
       return res.status(201).json({
         success: true,
         message: "User created successfully",
@@ -42,7 +50,7 @@ export class AuthController {
           .json({ success: false, errors: z.prettifyError(parsedData.error) });
       }
 
-      const { token, existingUser } = await userService.login(parsedData.data);
+      const { token, existingUser } = await this.userService.login(parsedData.data);
       return res.status(200).json({
         success: true,
         data: existingUser,
@@ -57,11 +65,10 @@ export class AuthController {
     }
   }
 
-  //2. Get All users
-  getAllUsers = async (req: Request, res: Response) => {
+  //3. Get All users
+  async getAllUsers(req: Request, res: Response) {
     try {
-      const userService = new UserService();
-      const users = await userService.getAllUsers();
+      const users = await this.userService.getAllUsers();
 
       res.status(200).json({
         success: true,
@@ -74,7 +81,7 @@ export class AuthController {
         message: error.message || "Internal Server Error",
       });
     }
-  };
+  }
 
   async updateProfile(req: Request, res: Response) {
     try {
@@ -94,7 +101,7 @@ export class AuthController {
         // if file is being uploaded
         parsedData.data.profilePicture = `/uploads/${req.file.filename}`;
       }
-      const updatedUser = await userService.updateUser(userId, parsedData.data);
+      const updatedUser = await this.userService.updateUser(userId, parsedData.data);
       return res.status(200).json({
         success: true,
         message: "User updated successfully",
@@ -108,7 +115,7 @@ export class AuthController {
     }
   }
 
-  //2. Who am I
+  //4. Who am I
   async me(req: Request, res: Response) {
     try {
       const userId = req.user?.id;
@@ -120,7 +127,7 @@ export class AuthController {
         });
       }
 
-      const user = await userService.getUserById(userId);
+      const user = await this.userService.getUserById(userId);
 
       return res.status(200).json({
         success: true,
@@ -138,7 +145,7 @@ export class AuthController {
   async sendResetPasswordEmail(req: Request, res: Response) {
     try {
       const email = req.body.email;
-      const user = await userService.sendResetPasswordEmail(email);
+      const user = await this.userService.sendResetPasswordEmail(email);
       return res.status(200).json({
         success: true,
         data: user,
@@ -156,7 +163,7 @@ export class AuthController {
     try {
       const token = req.params.token as string;
       const { newPassword } = req.body;
-      await userService.resetPassword(token, newPassword);
+      await this.userService.resetPassword(token, newPassword);
       return res.status(200).json({
         success: true,
         message: "Password has been reset successfully.",

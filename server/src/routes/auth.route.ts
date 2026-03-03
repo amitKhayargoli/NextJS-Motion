@@ -3,21 +3,37 @@ import { AuthController } from "../controllers/auth.controller";
 import { authorizedMiddleware } from "../middleware/authorized.middleware";
 import { uploads } from "../middleware/file-upload";
 
-const router = Router();
-const authController = new AuthController();
+export class AuthRoutes {
+  private router: Router;
 
-router.post("/register", authController.register);
-router.post("/login", authController.login);
-router.get("/users", authController.getAllUsers);
-router.put(
-  "/user/update",
-  authorizedMiddleware,
-  uploads.single("image"),
-  authController.updateProfile,
-);
-router.get("/me", authorizedMiddleware, authController.me);
+  constructor(private authController: AuthController) {
+    this.router = Router();
+    this.initializeRoutes();
+  }
 
-router.post("/request-password-reset", authController.sendResetPasswordEmail);
-router.post("/reset-password/:token", authController.resetPassword);
+  private initializeRoutes(): void {
+    this.router.post("/register", this.authController.register);
+    this.router.post("/login", this.authController.login);
+    this.router.get("/users", this.authController.getAllUsers);
+    this.router.put(
+      "/user/update",
+      authorizedMiddleware,
+      uploads.single("image"),
+      this.authController.updateProfile,
+    );
+    this.router.get("/me", authorizedMiddleware, this.authController.me);
 
-export default router;
+    this.router.post(
+      "/request-password-reset",
+      this.authController.sendResetPasswordEmail,
+    );
+    this.router.post(
+      "/reset-password/:token",
+      this.authController.resetPassword,
+    );
+  }
+
+  getRouter(): Router {
+    return this.router;
+  }
+}

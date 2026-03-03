@@ -3,18 +3,20 @@ import { Request, Response, NextFunction } from "express";
 import { HttpError } from "../dtos/errors/http-error";
 import { JWT_SECRET } from "../config";
 import { UserRepository } from "../repositories/user.repository";
-import { User } from "@generated/prisma/client";
+import { PrismaClient, Role, User } from "@generated/prisma/client";
 
 declare global {
   namespace Express {
     interface Request {
       user?: User;
+      userRole?: Role;
     }
   }
 }
 // Adding user info to req object
 
-const userRepository = new UserRepository();
+const prisma = new PrismaClient();
+const userRepository = new UserRepository(prisma);
 export const authorizedMiddleware = async (
   req: Request,
   res: Response,
@@ -36,13 +38,9 @@ export const authorizedMiddleware = async (
     req.user = user; // attach user info to req object
     return next();
   } catch (error: Error | any) {
-    return res.status(error.statusCode ?? 500).json({
+    return res.status(401).json({
       success: false,
-      message: error.message || "Internal Server Error",
+      message: "Invalid or expired token",
     });
   }
-  // if(req.headers && req.headers.authorization){
-  //     return next();
-  // }
-  // return res.status(401).json({ success: false, message: "Unauthorized" });
 };

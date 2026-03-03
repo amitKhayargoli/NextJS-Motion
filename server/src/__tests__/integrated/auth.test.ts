@@ -5,6 +5,53 @@ import { createTestApp } from "../helpers/testApp";
 const app = createTestApp();
 const prisma = new PrismaClient();
 
+async function cleanupTestUsers(emails: string[]) {
+  const users = await prisma.user.findMany({
+    where: { email: { in: emails } },
+  });
+  const userIds = users.map((u: any) => u.id);
+  if (userIds.length === 0) return;
+
+  const ownedWorkspaces = await prisma.workspace.findMany({
+    where: { ownerId: { in: userIds } },
+  });
+  const wsIds = ownedWorkspaces.map((w: any) => w.id);
+
+  if (wsIds.length > 0) {
+    const notes = await prisma.note.findMany({
+      where: { workspaceId: { in: wsIds } },
+    });
+    const noteIds = notes.map((n: any) => n.id);
+    if (noteIds.length > 0) {
+      await prisma.noteChunkEmbedding
+        .deleteMany({ where: { noteId: { in: noteIds } } })
+        .catch(() => {});
+    }
+    await prisma.note
+      .deleteMany({ where: { workspaceId: { in: wsIds } } })
+      .catch(() => {});
+    await prisma.task
+      .deleteMany({ where: { workspaceId: { in: wsIds } } })
+      .catch(() => {});
+    await prisma.userRoles
+      .deleteMany({ where: { workspaceId: { in: wsIds } } })
+      .catch(() => {});
+    await prisma.accessRequest
+      .deleteMany({ where: { workspaceId: { in: wsIds } } })
+      .catch(() => {});
+    await prisma.workspace
+      .deleteMany({ where: { id: { in: wsIds } } })
+      .catch(() => {});
+  }
+
+  await prisma.userRoles
+    .deleteMany({ where: { userId: { in: userIds } } })
+    .catch(() => {});
+  await prisma.user
+    .deleteMany({ where: { id: { in: userIds } } })
+    .catch(() => {});
+}
+
 describe("Authentication Routes (Integration)", () => {
   const baseUser = {
     username: "testuser",
@@ -35,16 +82,12 @@ describe("Authentication Routes (Integration)", () => {
 
   beforeAll(async () => {
     // Clean up users used by tests
-    await prisma.user.deleteMany({
-      where: { email: { in: [baseUser.email, secondUser.email] } },
-    });
+    await cleanupTestUsers([baseUser.email, secondUser.email]);
   });
 
   afterAll(async () => {
     // Clean up again (optional)
-    await prisma.user.deleteMany({
-      where: { email: { in: [baseUser.email, secondUser.email] } },
-    });
+    await cleanupTestUsers([baseUser.email, secondUser.email]);
     await prisma.$disconnect();
   });
 

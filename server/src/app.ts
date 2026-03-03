@@ -4,7 +4,6 @@ import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { PORT } from "./config";
 import { connectDatabase } from "./database/mongodb";
-import authRoutes from "./routes/auth.route";
 import { DIContainer } from "./di/container";
 import cookieParser from "cookie-parser";
 import path from "node:path";
@@ -56,11 +55,12 @@ app.get("/", (req: Request, res: Response) => {
 
 // Routes
 export const container = DIContainer.getInstance();
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", container.getAuthRoutes().getRouter());
 app.use("/api", container.getNoteRoutes().getRouter());
 app.use("/api", container.getWorkspaceRoutes().getRouter());
 app.use("/api", container.getAudioFileRoutes().getRouter());
 app.use("/api", container.getRagRoutes().getRouter());
+app.use("/api", container.getTaskRoutes().getRouter());
 
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
