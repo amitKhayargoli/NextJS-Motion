@@ -23,8 +23,12 @@ export class RagRoutes {
       this.ragController.listThreads(req, res),
     );
 
-    this.router.get("/rag/thread/:id", (req, res) =>  
+    this.router.get("/rag/thread/:id", (req, res) =>
       this.ragController.getThread(req, res),
+    );
+
+    this.router.put("/rag/thread/:id", (req, res) =>
+      this.ragController.updateThread(req, res),
     );
 
     this.router.delete("/rag/thread/:id", (req, res) =>
