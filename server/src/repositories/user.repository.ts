@@ -1,7 +1,5 @@
 import { PrismaClient, User } from "../generated/prisma/client";
 
-const prisma = new PrismaClient();
-
 export interface IUserRepository {
   createUser(userData: any): Promise<User>;
   getUserByEmail(email: string): Promise<User | null>;
@@ -13,6 +11,7 @@ export interface IUserRepository {
 }
 
 export class UserRepository implements IUserRepository {
+  constructor(private prisma: PrismaClient) {}
   async createUser(userData: any): Promise<User> {
     // Destructure whatever might be coming from the service
     const { email, username, password, passwordHash } = userData;
@@ -22,7 +21,7 @@ export class UserRepository implements IUserRepository {
       throw new Error("Missing required fields: email, username, or password");
     }
 
-    return await prisma.user.create({
+    return await this.prisma.user.create({
       data: {
         email,
         username,
@@ -32,25 +31,25 @@ export class UserRepository implements IUserRepository {
   }
 
   async getUserById(id: string): Promise<User | null> {
-    return await prisma.user.findUnique({
+    return await this.prisma.user.findUnique({
       where: { id },
     });
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    return await prisma.user.findUnique({
+    return await this.prisma.user.findUnique({
       where: { email },
     });
   }
 
   async getUserByUsername(username: string): Promise<User | null> {
-    return await prisma.user.findFirst({
+    return await this.prisma.user.findFirst({
       where: { username },
     });
   }
 
   async getAllUsers(): Promise<Omit<User, "passwordHash">[]> {
-    return await prisma.user.findMany({
+    return await this.prisma.user.findMany({
       select: {
         id: true,
         email: true,
@@ -66,7 +65,7 @@ export class UserRepository implements IUserRepository {
     updateData: Partial<User>,
   ): Promise<User | null> {
     if (updateData.email) {
-      const existingUser = await prisma.user.findUnique({
+      const existingUser = await this.prisma.user.findUnique({
         where: { id },
       });
 
@@ -76,7 +75,7 @@ export class UserRepository implements IUserRepository {
       }
     }
 
-    return prisma.user.update({
+    return this.prisma.user.update({
       where: { id },
       data: updateData,
     });
@@ -84,7 +83,7 @@ export class UserRepository implements IUserRepository {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      await prisma.user.delete({ where: { id } });
+      await this.prisma.user.delete({ where: { id } });
       return true;
     } catch {
       return false;

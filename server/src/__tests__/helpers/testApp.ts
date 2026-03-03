@@ -1,11 +1,12 @@
 import express from "express";
-import authRoutes from "../../routes/auth.route";
+import { DIContainer } from "../../di/container";
 
 export function createTestApp() {
   const app = express();
   app.use(express.json());
 
-  app.use("/api/auth", authRoutes);
+  const container = DIContainer.getInstance();
+  app.use("/api/auth", container.getAuthRoutes().getRouter());
 
   return app;
 }

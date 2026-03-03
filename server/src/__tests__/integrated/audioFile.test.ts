@@ -77,6 +77,8 @@ async function cleanupTestUsers(emails: string[]) {
 // Since there's no audioFileTestApp, we build one inline.
 import express, { Router } from "express";
 import { AuthController } from "src/controllers/auth.controller";
+import { UserService } from "src/services/user.service";
+import { UserRepository } from "src/repositories/user.repository";
 import { AudioFileRepository } from "src/repositories/audioFile.repository";
 import { AudioFileService } from "src/services/audioFile.service";
 import { AudioFileController } from "src/controllers/audioFile.controller";
@@ -88,16 +90,19 @@ function createAudioFileTestApp() {
   const app = express();
   app.use(express.json());
 
+  const prismaClient = new PrismaClient();
+
   // Auth router (minimal)
-  const authController = new AuthController();
+  const userRepository = new UserRepository(prismaClient);
+  const userService = new UserService(userRepository);
+  const authController = new AuthController(userService);
   const authRouter = Router();
-  authRouter.post("/register", authController.register.bind(authController));
-  authRouter.post("/login", authController.login.bind(authController));
-  authRouter.get("/me", authController.me?.bind(authController));
+  authRouter.post("/register", authController.register);
+  authRouter.post("/login", authController.login);
+  authRouter.get("/me", authController.me);
   app.use("/api/auth", authRouter);
 
   // AudioFile DI + routes
-  const prismaClient = new PrismaClient();
   const audioFileRepo = new AudioFileRepository(prismaClient);
   const audioFileService = new AudioFileService(audioFileRepo);
   const embeddingService = new EmbeddingService(prismaClient);
