@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { AudioFileService } from "../services/audioFile.service";
+import { UpdateAudioFileTitleDTO } from "../dtos/audioFile.dto";
 import { parseBuffer } from "music-metadata";
 import {
   User,
@@ -22,6 +23,7 @@ export class AudioFileController {
     this.getUserAudioFiles = this.getUserAudioFiles.bind(this);
     this.deleteAudioFile = this.deleteAudioFile.bind(this);
     this.transcribeAudioFile = this.transcribeAudioFile.bind(this);
+    this.updateAudioFile = this.updateAudioFile.bind(this);
   }
 
   async uploadAudioFile(req: Request, res: Response) {
@@ -190,6 +192,26 @@ export class AudioFileController {
     }
   }
 
+  async updateAudioFile(req: Request, res: Response) {
+    try {
+      const reqWithUser = req as Request & { user?: User };
+      const userId = reqWithUser.user?.id;
+      if (!userId)
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+
+      const dto = new UpdateAudioFileTitleDTO(req.body);
+      const audioFile = await this.audioFileService.updateAudioFileTitle(
+        req.params.id,
+        userId,
+        dto,
+      );
+
+      res.status(200).json({ success: true, data: audioFile });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+
   async deleteAudioFile(req: Request, res: Response) {
     try {
       const reqWithUser = req as Request & { user?: User };
@@ -217,7 +239,10 @@ export class AudioFileController {
         res.status(404).json({ success: false, error: error.message });
         return;
       }
-      if (error.message.includes("only delete your own")) {
+      if (
+        error.message.includes("only delete your own") ||
+        error.message.includes("only update your own")
+      ) {
         res.status(403).json({ success: false, error: error.message });
         return;
       }

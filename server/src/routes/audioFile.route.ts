@@ -47,6 +47,13 @@ export class AudioFileRoutes {
       authorizedMiddleware,
       this.audioFileController.deleteAudioFile,
     );
+
+    // Update audio file title
+    this.router.patch(
+      "/audio/:id",
+      authorizedMiddleware,
+      this.audioFileController.updateAudioFile,
+    );
   }
 
   getRouter(): Router {
