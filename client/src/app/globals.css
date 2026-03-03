@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+@import "quill/dist/quill.snow.css";
 
 html, body {
   font-family: 'DM Sans', sans-serif;
@@ -44,4 +45,39 @@ body {
            backdrop-blur-[24px] 
            shadow-xl;
   }
+}
+
+/* Custom Scrollbar for the editor area */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 10px;
+}
+
+/* Add to globals.css */
+.ql-editor {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  min-height: 500px;
+  color: #e5e7eb;
+}
+
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+  background: #121212;
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+}
+
+/* Fix for icons color in dark mode */
+.ql-snow .ql-stroke { stroke: #9ca3af !important; }
+.ql-snow .ql-fill { fill: #9ca3af !important; }
+
+.ql-editor.ql-blank::before {
+  color: rgba(156, 163, 175, 0.8) !important; /* gray-400 */
 }

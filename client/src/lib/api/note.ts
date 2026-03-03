@@ -1,6 +1,61 @@
 import axios from "./axios";
 import { API } from "./endpoints";
 
+// =====================
+// Types for pagination
+// =====================
+export type NoteListItem = {
+  id: string;
+  title: string;
+  type: string;
+  updatedAt: string;
+};
+
+export type PaginatedNotesResponse = {
+  success: boolean;
+  message?: string;
+  data: NoteListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+// Get paginated notes (command popup)
+export const fetchNotesPaged = async (params: {
+  workspaceId: string;
+  searchQuery?: string;
+  type?: string;
+  page: number;
+  limit: number;
+}) => {
+  try {
+    // Your backend route is GET /notes (based on NoteRoutes)
+    // So API.NOTE.GET_ALL should point to "/notes"
+    const response = await axios.get<PaginatedNotesResponse>(API.NOTE.GET_ALL, {
+      params: {
+        workspaceId: params.workspaceId,
+        searchQuery: params.searchQuery,
+        type: params.type,
+        page: params.page,
+        limit: params.limit,
+      },
+      withCredentials: true,
+    });
+
+    return response.data;
+  } catch (err: Error | any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to fetch notes";
+    throw new Error(message);
+  }
+};
+
 // Create a new note
 export const createNote = async (noteData: any) => {
   try {
@@ -32,9 +87,11 @@ export const updateNote = async (noteId: string, updateData: any) => {
 };
 
 // Get a single note by ID
-export const getNoteById = async (noteId: string) => {
+export const getNoteById = async (noteId: string, workspaceId?: string) => {
   try {
-    const response = await axios.get(API.NOTE.GET(noteId));
+    const response = await axios.get(API.NOTE.GET(noteId), {
+      params: workspaceId ? { workspaceId } : undefined,
+    });
     return response.data;
   } catch (err: Error | any) {
     const message =
@@ -107,18 +164,16 @@ export const deleteNote = async (noteId: string) => {
 };
 
 // Add or update a summary for a note
-export const addSummaryToNote = async (noteId: string, summary: string) => {
+export const addSummaryToNote = async (noteId: string) => {
   try {
-    const response = await axios.patch(API.NOTE.ADD_SUMMARY(noteId), {
-      summary,
-    });
+    const response = await axios.patch(API.NOTE.ADD_SUMMARY(noteId));
     return response.data;
   } catch (err: Error | any) {
     const message =
       err?.response?.data?.message ||
       err?.response?.data?.error ||
       err?.message ||
-      "Failed to add summary to note";
+      "Failed to summarize note";
     throw new Error(message);
   }
 };

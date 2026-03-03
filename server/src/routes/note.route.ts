@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { NoteController } from "../controllers/note.controller";
+import { editorOrAbove } from "../middleware/owner-only.middleware";
+import { authorizedMiddleware } from "../middleware/authorized.middleware";
+import { noteEditorOrAbove } from "../middleware/note-role.middleware";
 
 export class NoteRoutes {
   private router: Router;
@@ -10,13 +13,15 @@ export class NoteRoutes {
   }
 
   private initializeRoutes(): void {
+    this.router.use(authorizedMiddleware);
+
     // Create note
     this.router.post("/notes", (req, res) =>
       this.noteController.createNote(req, res),
     );
 
     // Update note
-    this.router.put("/notes/:id", (req, res) =>
+    this.router.put("/notes/:id", noteEditorOrAbove, (req, res) =>
       this.noteController.updateNote(req, res),
     );
 
@@ -40,13 +45,17 @@ export class NoteRoutes {
       this.noteController.getAuthorNotes(req, res),
     );
 
+    this.router.get("/notes/:audioFileId/transcript", (req, res) =>
+      this.noteController.getTranscriptByAudioFileId(req, res),
+    );
+
     // Delete note
-    this.router.delete("/notes/:id", (req, res) =>
+    this.router.delete("/notes/:id", noteEditorOrAbove, (req, res) =>
       this.noteController.deleteNote(req, res),
     );
 
     // Add summary to note
-    this.router.patch("/notes/:id/summary", (req, res) =>
+    this.router.patch("/notes/:id/summary", noteEditorOrAbove, (req, res) =>
       this.noteController.addSummary(req, res),
     );
   }

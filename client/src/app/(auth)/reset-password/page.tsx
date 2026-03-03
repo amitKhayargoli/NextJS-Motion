@@ -1,33 +1,16 @@
-"use client";
-
-import { useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import ResetPasswordModal from "../_components/ResetPasswordModal";
+import { Suspense } from "react";
+import ResetPasswordContent from "../_components/ResetPasswordContent";
 
 export default function ResetPasswordPage() {
-  const [open, setOpen] = useState(true);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const token = searchParams.get("token");
-
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        Invalid or missing token
-      </div>
-    );
-  }
-
   return (
-    <ResetPasswordModal
-      isOpen={open}
-      onClose={() => {
-        setOpen(false);
-        router.push("/login");
-      }}
-      mode="set"
-      token={token}
-    />
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-white">
+          Loading...
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

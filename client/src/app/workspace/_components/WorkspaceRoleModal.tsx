@@ -1,118 +1,366 @@
 "use client";
 
-import { useState } from "react";
-import { Avatar } from "@/components/ui/avatar";
+import * as React from "react";
+import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
+import { Crown, Trash2 } from "lucide-react";
+
 import { useAuth } from "../../../../context/AuthContext";
+import {
+  handleGetWorkspaceMembers,
+  handleUpdateMemberRole,
+  handleRemoveMember,
+} from "@/lib/actions/workspace-action";
 
-interface WorkspaceUser {
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent as AlertContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type WorkspaceUser = {
   userId: string;
-  name: string;
-  email: string;
-  avatar: string;
+  username?: string;
+  email?: string;
   role: "OWNER" | "EDITOR" | "VIEWER";
-}
+  profilePicture?: string;
+};
 
-interface Props {
+type Props = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
   workspaceId: string;
-  onClose: () => void;
+};
+
+function initials(name?: string, email?: string) {
+  const src = (name || email || "U").trim();
+  const parts = src.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-export default function WorkspaceRoleModal({ workspaceId, onClose }: Props) {
+export default function WorkspaceRoleModal({
+  open,
+  onOpenChange,
+  workspaceId,
+}: Props) {
   const { user } = useAuth();
-  // Dummy data simulating a join of User + UserRoles
-  const [users, setUsers] = useState<WorkspaceUser[]>([
-    {
-      userId: user?.id,
-      name: user?.username,
-      email: user?.email,
-      role: "OWNER",
-      avatar: `${process.env.NEXT_PUBLIC_API_BASE}${user.profilePicture}`,
-    },
-    {
-      userId: "2",
-      name: "Bob Smith",
-      email: "bob@example.com",
-      role: "EDITOR",
-      avatar: "https://i.pravatar.cc/150?img=2",
-    },
-    {
-      userId: "3",
-      name: "Charlie Brown",
-      email: "charlie@example.com",
-      role: "VIEWER",
-      avatar: "https://i.pravatar.cc/150?img=3",
-    },
-  ]);
+
+  const [users, setUsers] = React.useState<WorkspaceUser[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+
+  const [changedRoles, setChangedRoles] = React.useState<
+    Map<string, "EDITOR" | "VIEWER">
+  >(new Map());
+
+  const [removeOpen, setRemoveOpen] = React.useState(false);
+  const [memberToRemove, setMemberToRemove] =
+    React.useState<WorkspaceUser | null>(null);
+  const [removing, setRemoving] = React.useState(false);
+
+  const getProfilePictureUrl = (profilePicture?: string) => {
+    if (!profilePicture) return "";
+    return `${process.env.NEXT_PUBLIC_API_BASE}${profilePicture}`;
+  };
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await handleGetWorkspaceMembers(workspaceId);
+        if (!cancelled) {
+          if (res.success) setUsers(res.data ?? []);
+          else toast.error(res.message || "Failed to load members");
+        }
+      } catch (e: any) {
+        if (!cancelled) toast.error(e?.message || "Failed to load members");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, workspaceId]);
 
   const handleRoleChange = (userId: string, newRole: "EDITOR" | "VIEWER") => {
     setUsers((prev) =>
-      prev.map((user) =>
-        user.userId === userId ? { ...user, role: newRole } : user,
-      ),
+      prev.map((u) => (u.userId === userId ? { ...u, role: newRole } : u)),
     );
+    setChangedRoles((prev) => new Map(prev).set(userId, newRole));
+  };
+
+  const handleSaveChanges = async () => {
+    if (changedRoles.size === 0) {
+      onOpenChange(false);
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const promises = Array.from(changedRoles.entries()).map(
+        ([userId, role]) => handleUpdateMemberRole(workspaceId, userId, role),
+      );
+
+      const results = await Promise.all(promises);
+      const failed = results.filter((r: any) => !r.success);
+
+      if (failed.length) {
+        toast.error(
+          `Some updates failed: ${failed.map((f: any) => f.message).join(", ")}`,
+        );
+        return;
+      }
+
+      toast.success("Roles updated!");
+      setChangedRoles(new Map());
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update roles");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openRemove = (m: WorkspaceUser) => {
+    setMemberToRemove(m);
+    setRemoveOpen(true);
+  };
+
+  const confirmRemove = async () => {
+    if (!memberToRemove) return;
+
+    try {
+      setRemoving(true);
+
+      const requesterId = (user as any)?._id || (user as any)?.id;
+
+      const res = await handleRemoveMember(
+        workspaceId,
+        memberToRemove.userId,
+        requesterId,
+      );
+
+      if (!res.success) {
+        toast.error(res.message || "Failed to remove member");
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.filter((u) => u.userId !== memberToRemove.userId),
+      );
+      setChangedRoles((prev) => {
+        const next = new Map(prev);
+        next.delete(memberToRemove.userId);
+        return next;
+      });
+
+      toast.success("Member removed");
+      setRemoveOpen(false);
+      setMemberToRemove(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to remove member");
+    } finally {
+      setRemoving(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-[#131313] rounded-xl shadow-lg p-6 text-white">
-        <h2 className="text-2xl font-semibold mb-4">Manage Workspace Roles</h2>
-
-        <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
-          {users.map((user) => (
-            <div
-              key={user.userId}
-              className="flex items-center justify-between gap-4 bg-[#1F1F1F] p-3 rounded-md"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <AnimatePresence>
+        {open ? (
+          <DialogContent className="bg-[#121212] text-white border border-white/10 rounded-2xl p-0 overflow-hidden sm:max-w-2xl">
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.99 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="p-6"
             >
-              <div className="flex items-center gap-3">
-                <Avatar>
-                  <img src={user.avatar} alt={user.name} />
-                </Avatar>
-                <div>
-                  <p className="font-semibold">{user.name}</p>
-                  <p className="text-gray-400 text-sm">{user.email}</p>
+              <DialogHeader>
+                <DialogTitle className="text-white">
+                  Manage Workspace Roles
+                </DialogTitle>
+                <DialogDescription className="text-white/60">
+                  Change roles for members and remove access when needed.
+                </DialogDescription>
+              </DialogHeader>
+
+              <Separator className="bg-white/10 my-4" />
+
+              {loading ? (
+                <div className="py-10 text-sm text-white/60">
+                  Loading members…
                 </div>
+              ) : users.length === 0 ? (
+                <div className="py-10 text-sm text-white/60">
+                  No members found.
+                </div>
+              ) : (
+                <ScrollArea className="h-[420px] pr-3">
+                  <div className="space-y-2">
+                    {users.map((m) => {
+                      const img = getProfilePictureUrl(m.profilePicture);
+
+                      return (
+                        <div
+                          key={m.userId}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage
+                                src={img}
+                                className="aspect-square object-cover"
+                              />
+                              <AvatarFallback className="bg-white/10 text-white">
+                                {initials(m.username, m.email)}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">
+                                {m.username || "Unknown User"}
+                              </div>
+                              <div className="text-xs text-white/50 truncate">
+                                {m.email || "No email"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {m.role === "OWNER" ? (
+                              <Badge className="bg-white/10 border-white/10 text-white flex items-center gap-1">
+                                <Crown size={14} />
+                                OWNER
+                              </Badge>
+                            ) : (
+                              <>
+                                <Select
+                                  value={m.role}
+                                  onValueChange={(v) =>
+                                    handleRoleChange(m.userId, v as any)
+                                  }
+                                >
+                                  <SelectTrigger className="bg-black/20 border-white/10 rounded-xl w-[140px]">
+                                    <SelectValue placeholder="Role" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-[#121212] border-white/10 text-white">
+                                    <SelectItem value="EDITOR">
+                                      EDITOR
+                                    </SelectItem>
+                                    <SelectItem value="VIEWER">
+                                      VIEWER
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => openRemove(m)}
+                                  className="rounded-xl"
+                                >
+                                  <Trash2 size={16} className="mr-2" />
+                                  Remove
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+
+              <div className="mt-5 flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => onOpenChange(false)}
+                  className="rounded-xl text-white hover:bg-white/10"
+                  disabled={saving}
+                >
+                  Close
+                </Button>
+
+                <Button
+                  onClick={handleSaveChanges}
+                  className="rounded-xl bg-white/10 hover:bg-white/20 border border-white/10"
+                  disabled={saving || changedRoles.size === 0}
+                >
+                  {saving ? "Saving…" : "Save changes"}
+                </Button>
               </div>
 
-              <div>
-                {user.role === "OWNER" ? (
-                  <span className="bg-blue-500 px-2 py-1 rounded text-sm">
-                    OWNER
-                  </span>
-                ) : (
-                  <select
-                    className="bg-[#131313] border border-gray-600 rounded-md px-2 py-1 text-white"
-                    value={user.role}
-                    onChange={(e) =>
-                      handleRoleChange(
-                        user.userId,
-                        e.target.value as "EDITOR" | "VIEWER",
-                      )
-                    }
-                  >
-                    <option value="EDITOR">EDITOR</option>
-                    <option value="VIEWER">VIEWER</option>
-                  </select>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+              {/* Remove confirm */}
+              <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
+                <AlertContent className="bg-[#121212] text-white border border-white/10 rounded-2xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove member?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-white/60">
+                      This will remove{" "}
+                      <span className="text-white font-medium">
+                        {memberToRemove?.username ||
+                          memberToRemove?.email ||
+                          "this user"}
+                      </span>{" "}
+                      from this workspace immediately.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            className="px-4 py-2 border rounded-md hover:bg-gray-700"
-            onClick={onClose}
-          >
-            Close
-          </button>
-          <button
-            className="px-4 py-2 bg-blue-600 rounded-md hover:bg-blue-700"
-            onClick={() => alert("Roles saved (dummy)")}
-          >
-            Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      className="bg-transparent border border-white/10 text-white hover:bg-white/10"
+                      disabled={removing}
+                    >
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={confirmRemove}
+                      disabled={removing}
+                      className="bg-red-500/20 text-red-200 border border-red-400/30 hover:bg-red-500/30"
+                    >
+                      {removing ? "Removing…" : "Remove"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertContent>
+              </AlertDialog>
+            </motion.div>
+          </DialogContent>
+        ) : null}
+      </AnimatePresence>
+    </Dialog>
   );
 }

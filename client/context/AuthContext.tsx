@@ -13,6 +13,9 @@ import {
 } from "../src/lib/cookie";
 import { useRouter } from "next/navigation";
 
+import { useWorkspaceStore } from "@/store/workspace.store";
+import { useNotesStore } from "@/store/note.store"; // adjust if your path differs
+
 interface AuthContextProps {
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
@@ -29,7 +32,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
   const router = useRouter();
+
   const checkAuth = async () => {
     try {
       const token = await getTokenCookie();
@@ -51,8 +56,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await clearAuthCookies();
+
+      try {
+        localStorage.removeItem("lastOpenedWorkspaceId");
+        localStorage.removeItem("motionai-workspace-store");
+        localStorage.removeItem("motionai-notes-store");
+      } catch {}
+
+      try {
+        // or use setWorkspaces([]) etc.
+        useWorkspaceStore.getState().setWorkspaces([]);
+        useWorkspaceStore.getState().setActiveWorkspaceId(null);
+
+        const notesState: any = useNotesStore.getState();
+        if (typeof notesState.reset === "function") {
+          notesState.reset();
+        } else if (typeof notesState.setNotes === "function") {
+          notesState.setNotes([]);
+        }
+      } catch {}
+
+      // 4) clear auth state
       setIsAuthenticated(false);
       setUser(null);
+
+      // 5) redirect
+      router.replace("/");
+      router.refresh();
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -74,6 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     </AuthContext.Provider>
   );
 };
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

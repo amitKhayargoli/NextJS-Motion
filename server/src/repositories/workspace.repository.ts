@@ -50,6 +50,7 @@ export interface IWorkspaceRepository {
 
 export class WorkspaceRepository implements IWorkspaceRepository {
   constructor(private prisma: PrismaClient) {}
+
   async requestEditAccess(workspaceId: string, userId: string): Promise<void> {
     const existing = await this.prisma.accessRequest.findFirst({
       where: { workspaceId, userId, status: "PENDING" },
@@ -256,6 +257,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
             id: true,
             email: true,
             username: true,
+            profilePicture: true,
           },
         },
       },
@@ -264,7 +266,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     return members.map((m: any) => ({
       userId: m.userId,
       workspaceId,
-      WorkspaceRole: m.role as WorkspaceRole,
+      role: m.role as WorkspaceRole,
       user: m.user,
     }));
   }
@@ -302,5 +304,23 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       createdAt: workspace.createdAt,
       updatedAt: workspace.updatedAt,
     };
+  }
+
+  async getUserWorkspaceIds(userId: string) {
+    const owned = await this.prisma.workspace.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+
+    const member = await this.prisma.userRoles.findMany({
+      where: { userId },
+      select: { workspaceId: true },
+    });
+
+    const ids = new Set<string>();
+    owned.forEach((w) => ids.add(w.id));
+    member.forEach((r) => ids.add(r.workspaceId));
+
+    return Array.from(ids);
   }
 }
