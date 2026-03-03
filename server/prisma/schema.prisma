@@ -101,7 +101,7 @@ model Note {
   id        String     @id @default(auto()) @map("_id") @db.ObjectId
   title     String
   content   String     @default("") @db.String // Raw text/rich content
-  summary   String?    @db.String // AI Generated Summary
+  summary   String?    @db.String // AI Generated Summary`
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   type      NoteType   @default(MANUAL) // MANUAL, VOICE_TRANSCRIPT, MEETING_SUMMARY
@@ -124,6 +124,7 @@ model Note {
 
 model AudioFile {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  title           String? // ← add this
   fileName        String
   cloudUrl        String   @unique //cloudfare r2
   durationSeconds Int
@@ -193,6 +194,8 @@ model Task {
   id          String     @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?    @db.String
+  isCompleted Boolean    @default(false)
+  priority    String?
   status      TaskStatus @default(TODO)
   dueDate     DateTime?
   createdAt   DateTime   @default(now())

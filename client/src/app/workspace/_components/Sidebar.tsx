@@ -4,8 +4,6 @@ import React, { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../../../context/AuthContext";
 import AccountMenu from "@/app/_components/AccountMenu";
-import WorkspaceRoleModal from "./WorkspaceRoleModal";
-
 import { useWorkspaceStore } from "@/store/workspace.store";
 import { useNotesStore } from "@/store/note.store";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -94,8 +92,6 @@ export default function Sidebar({
     Record<string, boolean>
   >({});
 
-  const [roleModalOpen, setRoleModalOpen] = useState(false);
-
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<string | null>(
     null,
@@ -134,7 +130,6 @@ export default function Sidebar({
   const canDeleteNotes =
     activeWorkspace?.userRole === "OWNER" ||
     activeWorkspace?.userRole === "EDITOR";
-  const isOwner = activeWorkspace?.userRole === "OWNER";
 
   const requestDelete = (e: React.MouseEvent, noteId: string) => {
     e.stopPropagation();
@@ -285,16 +280,6 @@ export default function Sidebar({
                     )}
                   </div>
 
-                  {/* Manage roles */}
-                  {!sidebarCollapsed && isActiveWs && isOwner && (
-                    <div
-                      className="flex items-center gap-2 cursor-pointer hover:bg-white/10 rounded-md py-2 px-8 mt-2 transition-colors"
-                      onClick={() => setRoleModalOpen(true)}
-                    >
-                      <span className="ml-2">Manage Roles</span>
-                    </div>
-                  )}
-
                   {/* Notes under workspace */}
                   {!sidebarCollapsed && wsOpen && isActiveWs && (
                     <div className="ml-6 mt-2 flex flex-col gap-1">
@@ -426,7 +411,7 @@ export default function Sidebar({
             </div>
           </div>
 
-          {/* ✅ Logout button */}
+          {/*  Logout button */}
           <button
             type="button"
             onClick={handleLogout}
@@ -443,14 +428,6 @@ export default function Sidebar({
               </span>
             )}
           </button>
-
-          {activeWorkspaceId && (
-            <WorkspaceRoleModal
-              open={roleModalOpen}
-              onOpenChange={setRoleModalOpen}
-              workspaceId={activeWorkspaceId}
-            />
-          )}
         </div>
       </div>
 

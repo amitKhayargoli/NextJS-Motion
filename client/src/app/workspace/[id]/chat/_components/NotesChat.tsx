@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 /**
- * SAFELINK — prevents Next from crashing if href becomes "[object Object]"
+ * SAFELINK , prevents Next from crashing if href becomes "[object Object]"
  */
 function SafeLink(
   props: React.ComponentProps<typeof NextLink> & { debugName?: string },
@@ -268,13 +268,13 @@ export default function NotesChat({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  // ✅ open delete confirm
+  //  open delete confirm
   function requestDeleteThread(threadId: string) {
     setPendingDeleteThreadId(threadId);
     setDeleteOpen(true);
   }
 
-  // ✅ confirm delete
+  //  confirm delete
   async function confirmDeleteThread() {
     const threadId = pendingDeleteThreadId;
     if (!threadId) return;

@@ -22,6 +22,11 @@ export class WorkspaceController {
     this.joinByInviteLink = this.joinByInviteLink.bind(this);
     this.regenerateInviteLink = this.regenerateInviteLink.bind(this);
     this.manageRoles = this.manageRoles.bind(this);
+    this.requestEditAccess = this.requestEditAccess.bind(this);
+    this.getPendingRequests = this.getPendingRequests.bind(this);
+    this.approveRequest = this.approveRequest.bind(this);
+    this.denyRequest = this.denyRequest.bind(this);
+    this.getMyAccessRequest = this.getMyAccessRequest.bind(this);
   }
 
   async createWorkspace(req: Request, res: Response): Promise<void> {
@@ -143,9 +148,9 @@ export class WorkspaceController {
 
   async removeMember(req: Request, res: Response): Promise<void> {
     try {
-      const requesterId = req.body.requesterId;
+      const requesterId = req.user!.id;
       await this.workspaceService.removeMember(
-        req.params.id,
+        req.params.workspaceId,
         req.params.userId,
         requesterId,
       );
@@ -246,6 +251,58 @@ export class WorkspaceController {
         data: workspace,
         message: "Invite code regenerated successfully",
       });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+
+  async requestEditAccess(req: Request, res: Response): Promise<void> {
+    try {
+      const { workspaceId } = req.params;
+      const userId = req.user!.id;
+      await this.workspaceService.requestEditAccess(workspaceId, userId);
+      res.status(201).json({ success: true, message: "Edit access requested" });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+
+  async getPendingRequests(req: Request, res: Response): Promise<void> {
+    try {
+      const { workspaceId } = req.params;
+      const requests = await this.workspaceService.getPendingRequests(workspaceId);
+      res.status(200).json({ success: true, data: requests });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+
+  async approveRequest(req: Request, res: Response): Promise<void> {
+    try {
+      const { requestId } = req.params;
+      await this.workspaceService.approveEditAccess(requestId, req.user!.id);
+      res.status(200).json({ success: true, message: "Request approved" });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+
+  async denyRequest(req: Request, res: Response): Promise<void> {
+    try {
+      const { requestId } = req.params;
+      await this.workspaceService.denyEditAccess(requestId, req.user!.id);
+      res.status(200).json({ success: true, message: "Request denied" });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+
+  async getMyAccessRequest(req: Request, res: Response): Promise<void> {
+    try {
+      const { workspaceId } = req.params;
+      const userId = req.user!.id;
+      const request = await this.workspaceService.getMyAccessRequest(workspaceId, userId);
+      res.status(200).json({ success: true, data: request });
     } catch (error) {
       this.handleError(error, res);
     }

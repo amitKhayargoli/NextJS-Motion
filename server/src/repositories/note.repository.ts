@@ -100,7 +100,6 @@ export class NoteRepository implements INoteRepository {
 
     if (!note || !note.workspace) return null;
 
-    // ✅ Fix workspaceId filter properly (needs note.workspaceId)
     // Prisma doesn't allow referencing note.workspaceId inside the query directly,
     // so do a second query OR restructure selection:
     const roleRow = await this.prisma.userRoles.findUnique({
@@ -210,9 +209,30 @@ export class NoteRepository implements INoteRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.note.delete({
-      where: { id },
-    });
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // 1) delete vector chunks linked to this note
+          await tx.noteChunkEmbedding.deleteMany({
+            where: { noteId: id },
+          });
+
+          // 2) delete the note
+          await tx.note.delete({
+            where: { id },
+          });
+        });
+        return;
+      } catch (error: any) {
+        // P2034 = write conflict / deadlock , retry with backoff
+        if (attempt < maxRetries - 1 && error?.code === "P2034") {
+          await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   async exists(id: string): Promise<boolean> {

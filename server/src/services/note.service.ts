@@ -6,7 +6,7 @@ import {
   GetNotesQueryDTO,
 } from "../dtos/note.dto";
 import { NoteValidator } from "../dtos/validators/note.validator";
-import { INote } from "../types/note.type";
+import { INote, NoteType } from "../types/note.type";
 import { htmlToText } from "../utils/htmlToText";
 import { summarizeText } from "../utils/summarizer.client";
 import { EmbeddingService } from "./embedding.service";
@@ -99,6 +99,28 @@ export class NoteService {
     };
   }
 
+  async getTranscriptByAudioFileId(audioFileId: string) {
+    const note = await this.prisma.note.findFirst({
+      where: {
+        audioFileId,
+        type: NoteType.VOICE_TRANSCRIPT,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!note) {
+      return null;
+    }
+
+    return {
+      id: note.id,
+      title: note.title,
+      content: note.content,
+      status: note.status, // PROCESSING / PUBLISHED / DRAFT
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+    };
+  }
   async getWorkspaceNotes(workspaceId: string): Promise<NoteResponseDTO[]> {
     const notes = await this.noteRepository.findByWorkspaceId(workspaceId);
     return NoteResponseDTO.fromArray(notes);

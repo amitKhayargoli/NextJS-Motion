@@ -52,11 +52,11 @@ export default function NoteEditor({
   );
   const titleInFlightRef = useRef(false);
 
-  // ✅ Cursor + scroll preservation
+  //  Cursor + scroll preservation
   const lastRangeRef = useRef<{ index: number; length: number } | null>(null);
   const lastScrollTopRef = useRef<number>(0);
 
-  // ✅ Prevent restoring “old cursor” after user keeps typing during save
+  //  Prevent restoring “old cursor” after user keeps typing during save
   const editSeqRef = useRef(0);
 
   const getScroller = (q: any) => {
@@ -86,7 +86,7 @@ export default function NoteEditor({
     });
   };
 
-  // ✅ Sync UI state on note switch
+  //  Sync UI state on note switch
   useEffect(() => {
     setTitle(note.title);
     setSummary(note.summary ?? "");
@@ -158,8 +158,8 @@ export default function NoteEditor({
     };
   }, [title, note.id, canEdit]);
 
-  // ✅ Quill init + content autosave
-  // IMPORTANT: do NOT depend on note.content — that recreates Quill on every save.
+  //  Quill init + content autosave
+  // IMPORTANT: do NOT depend on note.content , that recreates Quill on every save.
   useEffect(() => {
     let destroyed = false;
     let quill: any = null;
@@ -195,19 +195,19 @@ export default function NoteEditor({
       quillRef.current = quill;
       quill.enable(canEdit);
 
-      // ✅ set initial content ONCE for this note
+      //  set initial content ONCE for this note
       const initialHtml = note.content ?? "";
       if (initialHtml) {
         quill.clipboard.dangerouslyPasteHTML(initialHtml);
       }
       lastSavedHtmlRef.current = initialHtml;
 
-      // ✅ selection tracking (cursor)
+      //  selection tracking (cursor)
       quill.on("selection-change", (range: any) => {
         if (range) lastRangeRef.current = range;
       });
 
-      // ✅ edit counter + scroll tracking (single handler)
+      //  edit counter + scroll tracking (single handler)
       quill.on("text-change", () => {
         editSeqRef.current += 1;
 
@@ -236,7 +236,7 @@ export default function NoteEditor({
 
           if (contentInFlightRef.current) return;
 
-          // ✅ capture cursor+scroll at save start
+          //  capture cursor+scroll at save start
           captureCursorAndScroll(quill);
           const saveStartSeq = editSeqRef.current;
 
@@ -254,11 +254,11 @@ export default function NoteEditor({
             const res = await handleUpdateNote(note.id, updateData);
             if (!res?.success) throw new Error(res?.message || "Save failed");
 
-            // ✅ Only update lastSaved with what we actually sent
+            //  Only update lastSaved with what we actually sent
             lastSavedHtmlRef.current = html;
             setSaveState("saved");
 
-            // ✅ IMPORTANT:
+            //  IMPORTANT:
             // Restore cursor ONLY if user didn't type since save started,
             // otherwise it snaps back to an old position.
             if (editSeqRef.current === saveStartSeq) {
@@ -305,7 +305,7 @@ export default function NoteEditor({
       quillRef.current = null;
       quill = null;
     };
-  }, [note.id, canEdit, note.status]); // ✅ no note.content here
+  }, [note.id, canEdit, note.status]); //  no note.content here
 
   return (
     <div className="flex h-screen bg-[#121212] text-white">

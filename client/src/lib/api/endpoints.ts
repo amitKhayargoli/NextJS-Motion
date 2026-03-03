@@ -16,6 +16,16 @@ export const API = {
     UPDATE_ROLE: (workspaceId: string) => `/workspace/${workspaceId}/roles`,
     REMOVE_MEMBER: (workspaceId: string, userId: string) =>
       `/workspace/${workspaceId}/members/${userId}`,
+    REQUEST_ACCESS: (workspaceId: string) =>
+      `/workspace/${workspaceId}/access-request`,
+    MY_ACCESS_REQUEST: (workspaceId: string) =>
+      `/workspace/${workspaceId}/access-request/my`,
+    PENDING_REQUESTS: (workspaceId: string) =>
+      `/workspace/${workspaceId}/access-requests`,
+    APPROVE_REQUEST: (workspaceId: string, requestId: string) =>
+      `/workspace/${workspaceId}/access-request/${requestId}/approve`,
+    DENY_REQUEST: (workspaceId: string, requestId: string) =>
+      `/workspace/${workspaceId}/access-request/${requestId}/deny`,
   },
   NOTE: {
     CREATE: "/notes",
