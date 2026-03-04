@@ -7,6 +7,7 @@ import {
   WorkspaceResponseDTO,
   WorkspaceWithRoleDTO,
   WorkspaceMemberDTO,
+  AccessRequestDTO,
 } from "../dtos/workspace.dto";
 import { WorkspaceValidator } from "../dtos/validators/workspace.validator";
 import { WorkspaceRole } from "../types/workspace.type";
@@ -175,6 +176,22 @@ export class WorkspaceService {
       dto.userId,
       dto.role,
     );
+
+    // If upgraded to EDITOR, resolve any pending access requests
+    if (dto.role === WorkspaceRole.EDITOR) {
+      await this.workspaceRepository.approveUserAccessRequests(
+        dto.workspaceId,
+        dto.userId,
+      );
+    }
+
+    // If downgraded back to VIEWER, clear any active access requests
+    if (dto.role === WorkspaceRole.VIEWER) {
+      await this.workspaceRepository.cancelUserAccessRequests(
+        dto.workspaceId,
+        dto.userId,
+      );
+    }
   }
 
   async getWorkspaceMembers(
@@ -301,5 +318,53 @@ export class WorkspaceService {
 
   private generateInviteLink(): string {
     return require("crypto").randomBytes(16).toString("hex");
+  }
+
+  async requestEditAccess(workspaceId: string, userId: string): Promise<void> {
+    const userRole = await this.workspaceRepository.getUserRole(
+      workspaceId,
+      userId,
+    );
+
+    if (!userRole) {
+      throw new Error("You are not a member of this workspace");
+    }
+
+    if (userRole !== WorkspaceRole.VIEWER) {
+      throw new Error("Only VIEWER members can request edit access");
+    }
+
+    await this.workspaceRepository.requestEditAccess(workspaceId, userId);
+  }
+
+  async approveEditAccess(requestId: string, ownerId: string): Promise<void> {
+    // ownerOnly middleware already verified the requester is the workspace owner
+    await this.workspaceRepository.approveEditAccess(requestId);
+  }
+
+  async denyEditAccess(requestId: string, ownerId: string): Promise<void> {
+    await this.workspaceRepository.denyEditAccess(requestId);
+  }
+
+  async getPendingRequests(workspaceId: string): Promise<AccessRequestDTO[]> {
+    const exists = await this.workspaceRepository.exists(workspaceId);
+    if (!exists) {
+      throw new Error("Workspace not found");
+    }
+
+    const requests =
+      await this.workspaceRepository.getPendingRequests(workspaceId);
+    return AccessRequestDTO.fromArray(requests);
+  }
+
+  async getMyAccessRequest(
+    workspaceId: string,
+    userId: string,
+  ): Promise<AccessRequestDTO | null> {
+    const request = await this.workspaceRepository.getMyAccessRequest(
+      workspaceId,
+      userId,
+    );
+    return request ? new AccessRequestDTO(request) : null;
   }
 }

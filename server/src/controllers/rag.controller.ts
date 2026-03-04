@@ -243,4 +243,38 @@ export class RagController {
         .json({ success: false, message: e?.message ?? "RAG failed" });
     }
   }
+
+  async updateThread(req: Request, res: Response) {
+    try {
+      const userId = this.getUserId(req as any);
+      const threadId = String(req.params.id || "");
+      const title = String(req.body?.title || "").trim();
+
+      if (!threadId) {
+        return res.status(400).json({
+          success: false,
+          message: "threadId is required",
+        });
+      }
+
+      if (!title) {
+        return res.status(400).json({
+          success: false,
+          message: "title is required",
+        });
+      }
+
+      const updated = await this.rag.updateThreadTitle(threadId, userId, title);
+
+      return res.json({
+        success: true,
+        data: updated,
+      });
+    } catch (e: any) {
+      return res.status(500).json({
+        success: false,
+        message: e?.message ?? "Update thread failed",
+      });
+    }
+  }
 }

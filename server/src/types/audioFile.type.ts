@@ -1,5 +1,6 @@
 export interface IAudioFile {
   id: string;
+  title?: string;
   fileName: string;
   cloudUrl: string;
   durationSeconds: number;
@@ -9,6 +10,7 @@ export interface IAudioFile {
 }
 
 export interface ICreateAudioFileData {
+  title?: string;
   fileName: string;
   cloudUrl: string;
   durationSeconds: number;
@@ -17,6 +19,7 @@ export interface ICreateAudioFileData {
 }
 
 export interface IUpdateAudioFileData {
+  title?: string;
   fileName?: string;
   durationSeconds?: number;
 }

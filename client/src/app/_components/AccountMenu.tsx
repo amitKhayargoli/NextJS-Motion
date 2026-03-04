@@ -225,7 +225,7 @@ export default function AccountMenu({
               asChild
               className="cursor-pointer hover:bg-white/5 focus:bg-white/5"
             >
-              <Link href="/login">
+              <Link href="/">
                 <Mail className="h-4 w-4 mr-2 text-white/70" />
                 Add another account
               </Link>

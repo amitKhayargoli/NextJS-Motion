@@ -2,19 +2,25 @@
 
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Search, MessageSquarePlus, Plus } from "lucide-react";
+import { Search, MessageSquarePlus, Plus, Users } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { handleCreateRagThread } from "@/lib/actions/rag-action";
 import { useNotesStore } from "@/store/note.store";
+import { useWorkspaceStore } from "@/store/workspace.store";
+import toast from "react-hot-toast";
 
 import {
   handleCreateWorkspace,
   handleGetWorkspaces,
   handleJoinWorkspace,
+  handleRequestEditAccess,
+  handleGetMyAccessRequest,
+  handleGetPendingRequests,
 } from "@/lib/actions/workspace-action";
 
 import WorkspaceOnboardingModal from "../_components/WorkspaceOnboardingModal";
+import WorkspaceRoleModal from "../_components/WorkspaceRoleModal";
 
 type NoteCard = {
   id: string;
@@ -70,6 +76,58 @@ export default function WorkspaceHomePage() {
   const [creatingChat, setCreatingChat] = React.useState(false);
 
   const [onboardingOpen, setOnboardingOpen] = React.useState(false);
+
+  // Workspace role
+  const { workspaces } = useWorkspaceStore(
+    useShallow((s) => ({ workspaces: s.workspaces })),
+  );
+  const activeWorkspace = React.useMemo(
+    () => (workspaces ?? []).find((w) => w.id === workspaceId) ?? null,
+    [workspaces, workspaceId],
+  );
+  const isOwner = activeWorkspace?.userRole === "OWNER";
+  const isViewer = activeWorkspace?.userRole === "VIEWER";
+
+  const [roleModalOpen, setRoleModalOpen] = React.useState(false);
+  const [accessRequestStatus, setAccessRequestStatus] = React.useState<
+    string | null
+  >(null);
+  const [requesting, setRequesting] = React.useState(false);
+  const [pendingCount, setPendingCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!workspaceId) return;
+    if (isViewer) {
+      handleGetMyAccessRequest(workspaceId)
+        .then((res) => setAccessRequestStatus(res?.data?.status ?? null))
+        .catch(() => {});
+    }
+    if (isOwner) {
+      handleGetPendingRequests(workspaceId)
+        .then((res) => setPendingCount(res?.data?.length ?? 0))
+        .catch(() => {});
+    }
+  }, [workspaceId, isViewer, isOwner]);
+
+  const handleRequestAccess = async () => {
+    if (!workspaceId || requesting) return;
+    if (accessRequestStatus === "PENDING" || accessRequestStatus === "APPROVED")
+      return;
+    setRequesting(true);
+    try {
+      const res = await handleRequestEditAccess(workspaceId);
+      if (res.success) {
+        setAccessRequestStatus("PENDING");
+        toast.success("Edit access requested");
+      } else {
+        toast.error(res.message || "Failed to request edit access");
+      }
+    } catch {
+      toast.error("Failed to request edit access");
+    } finally {
+      setRequesting(false);
+    }
+  };
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -163,6 +221,20 @@ export default function WorkspaceHomePage() {
 
   return (
     <>
+      <WorkspaceRoleModal
+        open={roleModalOpen}
+        onOpenChange={(v) => {
+          setRoleModalOpen(v);
+          // Refresh pending count when modal closes
+          if (!v && workspaceId && isOwner) {
+            handleGetPendingRequests(workspaceId)
+              .then((res) => setPendingCount(res?.data?.length ?? 0))
+              .catch(() => {});
+          }
+        }}
+        workspaceId={workspaceId}
+      />
+
       <WorkspaceOnboardingModal
         open={onboardingOpen}
         onOpenChange={setOnboardingOpen}
@@ -190,6 +262,55 @@ export default function WorkspaceHomePage() {
                 <Plus size={16} className="text-white/70" />
                 Workspace
               </button>
+
+              {/* Manage Roles (OWNER) */}
+              {isOwner && (
+                <button
+                  onClick={() => setRoleModalOpen(true)}
+                  className="relative rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition px-3 py-2 text-sm flex items-center gap-2"
+                >
+                  <Users size={16} className="text-white/70" />
+                  Manage Roles
+                  {pendingCount > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d2ff89] text-black text-xs font-bold px-1">
+                      {pendingCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* Request Edit Access (VIEWER) */}
+              {isViewer && (
+                <button
+                  onClick={
+                    accessRequestStatus === "PENDING" ||
+                    accessRequestStatus === "APPROVED" ||
+                    requesting
+                      ? undefined
+                      : handleRequestAccess
+                  }
+                  disabled={
+                    requesting ||
+                    accessRequestStatus === "PENDING" ||
+                    accessRequestStatus === "APPROVED"
+                  }
+                  className={`rounded-xl border px-3 py-2 text-sm transition flex items-center gap-2 disabled:cursor-not-allowed ${
+                    accessRequestStatus === "APPROVED"
+                      ? "border-[#d2ff89]/30 bg-[#d2ff89]/10 text-[#d2ff89]"
+                      : accessRequestStatus === "PENDING"
+                        ? "border-white/10 bg-black/20 text-white/40"
+                        : "border-white/10 bg-black/20 hover:bg-white/5"
+                  }`}
+                >
+                  {requesting
+                    ? "Requesting…"
+                    : accessRequestStatus === "PENDING"
+                      ? "Request Pending"
+                      : accessRequestStatus === "APPROVED"
+                        ? "Edit Access Granted ✓"
+                        : "Request Edit Access"}
+                </button>
+              )}
 
               {/* Go to chat */}
               <button

@@ -10,6 +10,9 @@ import {
   handleGetWorkspaceMembers,
   handleUpdateMemberRole,
   handleRemoveMember,
+  handleGetPendingRequests,
+  handleApproveRequest,
+  handleDenyRequest,
 } from "@/lib/actions/workspace-action";
 
 import {
@@ -43,6 +46,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+type AccessRequest = {
+  id: string;
+  userId: string;
+  status: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    profilePicture?: string | null;
+  };
+};
 
 type WorkspaceUser = {
   userId: string;
@@ -85,6 +100,12 @@ export default function WorkspaceRoleModal({
     React.useState<WorkspaceUser | null>(null);
   const [removing, setRemoving] = React.useState(false);
 
+  const [pendingRequests, setPendingRequests] = React.useState<AccessRequest[]>(
+    [],
+  );
+  const [approvingId, setApprovingId] = React.useState<string | null>(null);
+  const [denyingId, setDenyingId] = React.useState<string | null>(null);
+
   const getProfilePictureUrl = (profilePicture?: string) => {
     if (!profilePicture) return "";
     return `${process.env.NEXT_PUBLIC_API_BASE}${profilePicture}`;
@@ -97,10 +118,15 @@ export default function WorkspaceRoleModal({
     (async () => {
       setLoading(true);
       try {
-        const res = await handleGetWorkspaceMembers(workspaceId);
+        const [membersRes, requestsRes] = await Promise.all([
+          handleGetWorkspaceMembers(workspaceId),
+          handleGetPendingRequests(workspaceId),
+        ]);
         if (!cancelled) {
-          if (res.success) setUsers(res.data ?? []);
-          else toast.error(res.message || "Failed to load members");
+          if (membersRes.success) setUsers(membersRes.data ?? []);
+          else toast.error(membersRes.message || "Failed to load members");
+
+          if (requestsRes.success) setPendingRequests(requestsRes.data ?? []);
         }
       } catch (e: any) {
         if (!cancelled) toast.error(e?.message || "Failed to load members");
@@ -151,6 +177,59 @@ export default function WorkspaceRoleModal({
       toast.error(e?.message || "Failed to update roles");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleApprove = async (req: AccessRequest) => {
+    setApprovingId(req.id);
+    try {
+      const res = await handleApproveRequest(workspaceId, req.id);
+      if (!res.success) {
+        toast.error(res.message || "Failed to approve request");
+        return;
+      }
+      // Update the user's role to EDITOR (they're already in the list as VIEWER)
+      setUsers((prev) => {
+        const exists = prev.some((u) => u.userId === req.user.id);
+        if (exists) {
+          return prev.map((u) =>
+            u.userId === req.user.id ? { ...u, role: "EDITOR" } : u,
+          );
+        }
+        return [
+          ...prev,
+          {
+            userId: req.user.id,
+            username: req.user.username,
+            email: req.user.email,
+            role: "EDITOR",
+            profilePicture: req.user.profilePicture ?? undefined,
+          },
+        ];
+      });
+      setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+      toast.success("Request approved");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to approve request");
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleDeny = async (req: AccessRequest) => {
+    setDenyingId(req.id);
+    try {
+      const res = await handleDenyRequest(workspaceId, req.id);
+      if (!res.success) {
+        toast.error(res.message || "Failed to deny request");
+        return;
+      }
+      setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+      toast.success("Request denied");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to deny request");
+    } finally {
+      setDenyingId(null);
     }
   };
 
@@ -219,6 +298,76 @@ export default function WorkspaceRoleModal({
               </DialogHeader>
 
               <Separator className="bg-white/10 my-4" />
+
+              {/* Pending edit-access requests (OWNER only) */}
+              {pendingRequests.length > 0 && (
+                <div className="mb-5">
+                  <div className="text-sm font-medium text-white/70 mb-3">
+                    Pending Requests
+                    <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d2ff89] text-black text-xs font-bold px-1">
+                      {pendingRequests.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {pendingRequests.map((req) => {
+                      const img = req.user.profilePicture
+                        ? `${process.env.NEXT_PUBLIC_API_BASE}${req.user.profilePicture}`
+                        : "";
+                      const isApproving = approvingId === req.id;
+                      const isDenying = denyingId === req.id;
+                      const busy = isApproving || isDenying;
+
+                      return (
+                        <div
+                          key={req.id}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage
+                                src={img}
+                                className="aspect-square object-cover"
+                              />
+                              <AvatarFallback className="bg-white/10 text-white">
+                                {initials(req.user.username, req.user.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">
+                                {req.user.username || "Unknown User"}
+                              </div>
+                              <div className="text-xs text-white/50 truncate">
+                                {req.user.email || "No email"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApprove(req)}
+                              disabled={busy}
+                              className="rounded-xl bg-[#d2ff89]/10 text-[#d2ff89] border border-[#d2ff89]/30 hover:bg-[#d2ff89]/20"
+                            >
+                              {isApproving ? "Approving…" : "Approve"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeny(req)}
+                              disabled={busy}
+                              className="rounded-xl bg-red-500/20 text-red-200 border border-red-400/30 hover:bg-red-500/30"
+                            >
+                              {isDenying ? "Denying…" : "Deny"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Separator className="bg-white/10 mt-4 mb-0" />
+                </div>
+              )}
 
               {loading ? (
                 <div className="py-10 text-sm text-white/60">

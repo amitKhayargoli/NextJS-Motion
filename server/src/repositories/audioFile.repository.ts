@@ -21,6 +21,7 @@ export class AudioFileRepository implements IAudioFileRepository {
   async create(data: ICreateAudioFileData): Promise<IAudioFile> {
     const audioFile = await this.prisma.audioFile.create({
       data: {
+        title: data.title,
         fileName: data.fileName,
         cloudUrl: data.cloudUrl,
         durationSeconds: data.durationSeconds,
@@ -53,6 +54,7 @@ export class AudioFileRepository implements IAudioFileRepository {
     const audioFile = await this.prisma.audioFile.update({
       where: { id },
       data: {
+        ...(data.title !== undefined && { title: data.title }),
         ...(data.fileName && { fileName: data.fileName }),
         ...(data.durationSeconds && { durationSeconds: data.durationSeconds }),
       },
@@ -77,6 +79,7 @@ export class AudioFileRepository implements IAudioFileRepository {
   private mapToIAudioFile(audioFile: any): IAudioFile {
     return {
       id: audioFile.id,
+      title: audioFile.title,
       fileName: audioFile.fileName,
       cloudUrl: audioFile.cloudUrl,
       durationSeconds: audioFile.durationSeconds,

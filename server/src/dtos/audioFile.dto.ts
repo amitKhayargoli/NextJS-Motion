@@ -1,4 +1,5 @@
 export class CreateAudioFileDTO {
+  title?: string;
   fileName: string;
   cloudUrl: string;
   durationSeconds: number;
@@ -14,8 +15,17 @@ export class CreateAudioFileDTO {
   }
 }
 
+export class UpdateAudioFileTitleDTO {
+  title: string;
+
+  constructor(data: any) {
+    this.title = data.title;
+  }
+}
+
 export class AudioFileResponseDTO {
   id: string;
+  title?: string;
   fileName: string;
   cloudUrl: string;
   durationSeconds: number;
@@ -25,6 +35,7 @@ export class AudioFileResponseDTO {
 
   constructor(audioFile: any) {
     this.id = audioFile.id;
+    this.title = audioFile.title;
     this.fileName = audioFile.fileName;
     this.cloudUrl = audioFile.cloudUrl;
     this.durationSeconds = audioFile.durationSeconds;

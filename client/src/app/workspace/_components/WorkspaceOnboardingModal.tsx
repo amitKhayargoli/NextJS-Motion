@@ -87,7 +87,7 @@ export default function WorkspaceOnboardingModal({
     try {
       await onCreate(data.workspaceName.trim());
       toast.success("Workspace created");
-      onOpenChange(false); // ✅ close
+      onOpenChange(false); //  close
     } catch (err: any) {
       toast.error(err?.message || "Failed to create workspace");
     }
@@ -97,7 +97,7 @@ export default function WorkspaceOnboardingModal({
     try {
       await onJoin(data.inviteLink.trim());
       toast.success("Joined workspace");
-      onOpenChange(false); // ✅ close
+      onOpenChange(false); //  close
     } catch (err: any) {
       toast.error(err?.message || "Failed to join workspace");
     }

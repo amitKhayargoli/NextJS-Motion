@@ -123,7 +123,9 @@ export class UserService {
         throw new HttpError(404, "User not found");
       }
       const hashedPassword = await bcryptjs.hash(newPassword, 10);
-      await this.userRepository.updateUser(userId, { passwordHash: hashedPassword });
+      await this.userRepository.updateUser(userId, {
+        passwordHash: hashedPassword,
+      });
       return user;
     } catch (error) {
       throw new HttpError(400, "Invalid or expired token");
